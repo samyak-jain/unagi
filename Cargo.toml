@@ -1,0 +1,17 @@
+[package]
+name = "denki"
+version = "0.1.0"
+authors = ["samyak-jain <samtan106@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocket = { git = "https://github.com/SergioBenitez/Rocket", version = "0.5.0-dev" }
+diesel = { version = "1.4.4", features = ["postgres"] }
+dotenv = "0.15.0"
+
+[dependencies.rocket_contrib]
+version = "0.4.6"
+default-features = false
+features = ["json", "diesel_postgres_pool"]

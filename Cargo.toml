@@ -12,6 +12,9 @@ diesel = { version = "1.4.4", features = ["postgres"] }
 dotenv = "0.15.0"
 validator = { version = "0.12", features = ["derive"] }
 serde = "1.0.117"
+serde_json = "1.0"
+reqwest = { version = "0.10.9", features = ["blocking"] }
+simple-error = "0.2.2"
 
 [dependencies.rocket_contrib]
 version = "0.5.0-dev"

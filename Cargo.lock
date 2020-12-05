@@ -10,6 +10,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "anitomy"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5dbd2cfb14d3a442954182c1e8804a859e65143473ddfc7521e8766a4c44a9d"
+dependencies = [
+ "anitomy-sys",
+]
+
+[[package]]
+name = "anitomy-sys"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1ade7dff1b0d6e91f90986f26538baa14f8143d9c5d79cae3f914070a2e30ea"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -161,8 +179,10 @@ checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
 name = "denki"
 version = "0.1.0"
 dependencies = [
+ "anitomy",
  "diesel",
  "dotenv",
+ "kitsu_io",
  "reqwest",
  "rocket",
  "rocket_contrib",
@@ -610,6 +630,18 @@ checksum = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 dependencies = [
  "winapi 0.2.8",
  "winapi-build",
+]
+
+[[package]]
+name = "kitsu_io"
+version = "0.2.0"
+source = "git+https://github.com/samyak-jain/kitsu.rs?branch=update-dependencies#29b803549e1a03e8853eac63aff5eada00d47d7e"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

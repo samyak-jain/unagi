@@ -1,4 +1,14 @@
 table! {
+    episodes (id) {
+        id -> Int4,
+        show_id -> Nullable<Int4>,
+        name -> Nullable<Varchar>,
+        thumbnail -> Nullable<Varchar>,
+        file_path -> Varchar,
+    }
+}
+
+table! {
     library (id) {
         id -> Int4,
         name -> Varchar,
@@ -9,16 +19,21 @@ table! {
 table! {
     shows (id) {
         id -> Int4,
-        library_id -> Nullable<Int4>,
+        library_id -> Int4,
         title -> Varchar,
         image -> Nullable<Varchar>,
         file_path -> Varchar,
+        description -> Nullable<Varchar>,
+        cover_image -> Nullable<Varchar>,
+        banner_image -> Nullable<Varchar>,
     }
 }
 
+joinable!(episodes -> shows (show_id));
 joinable!(shows -> library (library_id));
 
 allow_tables_to_appear_in_same_query!(
+    episodes,
     library,
     shows,
 );

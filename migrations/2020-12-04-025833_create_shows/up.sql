@@ -1,7 +1,7 @@
 -- Your SQL goes here
 CREATE TABLE shows (
     id SERIAL PRIMARY KEY,
-    library_id INTEGER,
+    library_id INTEGER NOT NULL,
     title VARCHAR NOT NULL,
     image VARCHAR,
     file_path VARCHAR NOT NULL,

@@ -6,7 +6,7 @@ use crate::models::library::Library;
 
 #[derive(Insertable)]
 #[table_name = "library"]
-struct LibraryInsert {
+struct LibraryNew {
     name: String,
     location: String,
 }
@@ -16,7 +16,7 @@ pub fn create(
     name_string: String,
     location_string: String,
 ) -> Result<i32, diesel::result::Error> {
-    let new_library = &LibraryInsert {
+    let new_library = &LibraryNew {
         name: name_string,
         location: location_string,
     };

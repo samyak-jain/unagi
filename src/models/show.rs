@@ -6,9 +6,12 @@ use serde::Serialize;
 #[belongs_to(library::Library)]
 #[table_name = "shows"]
 pub struct Show {
-    id: i32,
-    library_id: i32,
-    title: String,
-    image: String,
-    file_path: String,
+    pub id: i32,
+    pub library_id: i32,
+    pub title: String,
+    pub image: Option<String>,
+    pub file_path: String,
+    pub description: Option<String>,
+    pub cover_image: Option<String>,
+    pub banner_image: Option<String>,
 }

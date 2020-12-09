@@ -1,22 +1,26 @@
-use rocket::{
-    http::Status,
-    response::{status::Custom, NamedFile},
-};
+use crate::{errors::FileResponse, SETTINGS};
+use std::{path::PathBuf, thread::spawn};
+
+use rocket::response::NamedFile;
 use rocket_contrib::uuid::Uuid;
 
-use crate::db;
+use crate::{db, handlers::transcode::start_transcoding};
 
 #[rocket::get("/file/<id>")]
-pub async fn serve(id: Uuid, conn: db::Conn) -> Result<NamedFile, Custom<String>> {
+pub async fn serve(id: Uuid, conn: db::Conn) -> FileResponse {
     let episode_result = conn
         .run(move |c| db::episodes::fetch(c, id.into_inner()))
-        .await;
+        .await?;
 
-    match episode_result {
-        Ok(path) => match NamedFile::open(path).await {
-            Ok(file) => Ok(file),
-            Err(e) => Err(Custom(Status::InternalServerError, e.to_string())),
-        },
-        Err(e) => Err(Custom(Status::InternalServerError, e.to_string())),
-    }
+    let transcoding_path = SETTINGS.read()?.get_str("TRANSCODING")?;
+
+    spawn(move || {
+        start_transcoding(
+            PathBuf::from(episode_result),
+            PathBuf::from(transcoding_path),
+        )
+        .unwrap();
+    });
+
+    Ok(NamedFile::open(transcoding_path).await?)
 }

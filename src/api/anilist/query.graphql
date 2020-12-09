@@ -1,0 +1,29 @@
+query GetAnime($name: String!) {
+  Media(search: $name, type: ANIME, sort: START_DATE) {
+    id
+    description
+    coverImage {
+      extraLarge
+      medium
+      color
+    }
+    bannerImage
+    episodes
+    streamingEpisodes {
+      title
+      thumbnail
+    }
+    title {
+      english
+    }
+    seasonInt
+    relations {
+      edges {
+        relationType
+        node {
+           	id
+      	}
+      }
+    }
+  }
+}

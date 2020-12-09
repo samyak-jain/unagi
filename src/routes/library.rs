@@ -1,11 +1,9 @@
-use std::thread;
-
-use rocket::{http::Status, response::status::Custom};
-use rocket_contrib::json::{Json, JsonValue};
+use crate::errors::ApiResponse;
+use rocket_contrib::json::Json;
 use serde::Deserialize;
 use validator::Validate;
 
-use crate::{db, handlers::library::Library};
+use crate::{db, handlers::files::Library};
 
 #[derive(Deserialize, Validate)]
 pub struct NewLibrary {
@@ -16,23 +14,21 @@ pub struct NewLibrary {
 }
 
 #[post("/library", format = "json", data = "<new_library>")]
-pub async fn add_library(
-    new_library: Json<NewLibrary>,
-    conn: db::Conn,
-) -> Result<JsonValue, Custom<String>> {
+pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiResponse {
     let new_library = new_library.into_inner();
     let library_path = new_library.location.clone();
     let new_library_id = conn
-        .run(|c| db::library::create(&c, new_library.name, new_library.location))
+        .run(|c| {
+            let new_library_id =
+                db::library::create(&c, new_library.name, new_library.location).unwrap();
+            let mut library = Library::new(library_path, new_library_id);
+            library.read_library().unwrap();
+            for show in library.shows {
+                db::shows::create(c, show, new_library_id).unwrap();
+            }
+            new_library_id
+        })
         .await;
 
-    thread::spawn(move || {
-        let mut library = Library::new(library_path);
-        library.read_library().unwrap();
-    });
-
-    match new_library_id {
-        Ok(new_library_id) => Ok(json!({ "library": new_library_id })),
-        Err(e) => Err(Custom(Status::InternalServerError, e.to_string())),
-    }
+    Ok(json!({ "library": new_library_id }))
 }

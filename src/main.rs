@@ -10,14 +10,29 @@ extern crate diesel;
 #[macro_use]
 extern crate simple_error;
 
+#[macro_use]
+extern crate graphql_client;
+
+#[macro_use]
+extern crate lazy_static;
+
+extern crate anitomy;
+extern crate config;
 extern crate dotenv;
 extern crate reqwest;
 extern crate serde;
 
+use config::Config;
 use dotenv::dotenv;
+use std::sync::RwLock;
+
+lazy_static! {
+    static ref SETTINGS: RwLock<Config> = RwLock::new(Config::default());
+}
 
 mod api;
 mod db;
+mod errors;
 mod handlers;
 mod models;
 mod routes;
@@ -33,7 +48,10 @@ async fn main() {
     dotenv().ok();
 
     rocket::ignite()
-        .mount("/", routes![hello, routes::library::add_library])
+        .mount(
+            "/",
+            routes![hello, routes::library::add_library, routes::files::serve],
+        )
         .attach(db::Conn::fairing())
         .launch()
         .await

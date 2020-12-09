@@ -17,15 +17,14 @@ pub struct ShowNew {
 
 pub fn create(
     conn: &PgConnection,
-    name_string: String,
-    location_string: String,
+    show: crate::handlers::files::Show,
     library_id: i32,
 ) -> Result<i32, diesel::result::Error> {
     let new_show = &ShowNew {
-        title: name_string,
+        title: show.name,
         library_id,
         image: None,
-        file_path: location_string,
+        file_path: show.path,
         description: None,
         cover_image: None,
         banner_image: None,
@@ -35,6 +34,11 @@ pub fn create(
         .values(new_show)
         .get_result::<Show>(conn)?
         .id;
+
+    show.episodes
+        .into_iter()
+        .map(|episode| super::episodes::create(conn, episode, result_id))
+        .collect::<Result<Vec<String>, diesel::result::Error>>()?;
 
     Ok(result_id)
 }

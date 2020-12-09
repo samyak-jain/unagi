@@ -15,25 +15,25 @@ pub struct EpisodeNew {
 
 pub fn create(
     conn: &PgConnection,
-    file_path: String,
+    episode: crate::handlers::files::Episode,
     show_id: i32,
-) -> Result<i32, diesel::result::Error> {
+) -> Result<String, diesel::result::Error> {
     let locator_id = Uuid::new_v4();
 
     let new_episode = &EpisodeNew {
         show_id,
-        file_path,
+        file_path: episode.path,
         locator_id,
-        name: None,
+        name: Some(episode.name),
         thumbnail: None,
     };
 
-    let result_id = diesel::insert_into(episodes::table)
+    let result_path = diesel::insert_into(episodes::table)
         .values(new_episode)
         .get_result::<Episode>(conn)?
-        .id;
+        .file_path;
 
-    Ok(result_id)
+    Ok(result_path)
 }
 
 pub fn fetch(conn: &PgConnection, episode_uuid: Uuid) -> Result<String, diesel::result::Error> {

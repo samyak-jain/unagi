@@ -10,7 +10,6 @@ extern crate diesel;
 #[macro_use]
 extern crate simple_error;
 
-#[macro_use]
 extern crate graphql_client;
 
 #[macro_use]

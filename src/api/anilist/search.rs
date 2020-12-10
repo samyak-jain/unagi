@@ -1,7 +1,7 @@
 use graphql_client::*;
+use regex::Regex;
 use std::error::Error;
 
-use crate::api::anilist::search::get_anime::GetAnimeMediaStreamingEpisodes;
 use crate::handlers::files::Show;
 
 #[derive(GraphQLQuery)]
@@ -12,57 +12,77 @@ use crate::handlers::files::Show;
 )]
 struct GetAnime;
 
-async fn fetch_anime(mut show: Show) -> Result<(), Box<dyn Error>> {
-    let request_body = GetAnime::build_query(get_anime::Variables { name: show.name });
-    let client = reqwest::Client::new();
-    let res = client.post("/").json(&request_body).send().await?;
-    let response_body: Response<get_anime::ResponseData> = res.json().await?;
+impl Show {
+    fn update_episode(
+        &mut self,
+        number: String,
+        name: String,
+        thumbnail: Option<String>,
+    ) -> Option<()> {
+        let ep_index = self
+            .episodes
+            .iter()
+            .position(|ep| ep.number == Some(number.clone()))?;
 
-    if response_body.errors.is_some() || response_body.data.is_none() {
-        error!("GraphQLQuery not successfull");
-        return Ok(());
+        self.episodes[ep_index].name = name;
+        self.episodes[ep_index].thumbnail = thumbnail;
+
+        Some(())
     }
 
-    // name, cover_image, banner_image, description, episode name, episode thumbnail
+    pub fn fetch_anime(&mut self) -> Result<(), Box<dyn Error>> {
+        let request_body = GetAnime::build_query(get_anime::Variables {
+            name: self.name.to_owned(),
+        });
+        let client = reqwest::blocking::Client::new();
+        let res = client
+            .post("https://graphql.anilist.co/")
+            .json(&request_body)
+            .send()?;
+        let response_body: Response<get_anime::ResponseData> = res.json()?;
 
-    let response_data: get_anime::ResponseData =
-        response_body.data.ok_or("Invalid GraphQL Response")?;
+        if response_body.errors.is_some() || response_body.data.is_none() {
+            error!("GraphQLQuery not successfull");
+            return Ok(());
+        }
 
-    let response_anime = response_data.media.ok_or("no anime found")?;
+        // name, cover_image, banner_image, description, episode name, episode thumbnail
 
-    show.name = response_anime
-        .title
-        .ok_or("no title found")?
-        .english
-        .ok_or("no english title found")?;
+        let response_data: get_anime::ResponseData =
+            response_body.data.ok_or("Invalid GraphQL Response")?;
 
-    show.description = response_anime.description;
-    show.banner_image = response_anime.banner_image;
-    show.cover_image = response_anime
-        .cover_image
-        .ok_or("No cover found")?
-        .extra_large;
+        let response_anime = response_data.media.ok_or("no anime found")?;
 
-    let episode_number = response_anime.episodes.unwrap_or(0) as usize;
-    let episode_list = response_anime.streaming_episodes.ok_or("No episodes")?;
-    if show.episodes.len() != episode_number || episode_number != episode_list.len() {
-        warn!(
-            "Mismatch of length, Filesystem length: {}, GraphQl len: {}, GraphQl Vector Length {}",
-            show.episodes.len(),
-            episode_number,
-            episode_list.len()
-        );
-        return Ok(());
+        if let Some(anime_name) = response_anime.title {
+            self.name = anime_name.english.unwrap_or(
+                anime_name
+                    .romaji
+                    .unwrap_or(anime_name.native.unwrap_or(self.name.to_owned())),
+            )
+        }
+
+        self.description = response_anime.description;
+        self.banner_image = response_anime.banner_image;
+        self.cover_image = response_anime
+            .cover_image
+            .ok_or("No cover found")?
+            .extra_large;
+
+        let pattern = Regex::new(r".*Episode.(\d+).*")?;
+        if let Some(episode_list) = response_anime.streaming_episodes {
+            for episode in episode_list {
+                match episode {
+                    Some(ep) => {
+                        if let Some(title) = ep.title {
+                            if let Some(ep_num) = pattern.captures(title.as_str()) {
+                                self.update_episode(String::from(&ep_num[0]), title, ep.thumbnail);
+                            }
+                        }
+                    }
+                    None => continue,
+                }
+            }
+        }
+        Ok(())
     }
-
-    episode_list
-        .into_iter()
-        .enumerate()
-        .map(|(i, mut val)| {
-            show.episodes[i].name = val.take().unwrap().title.unwrap();
-            show.episodes[i].thumbnail = val.unwrap().thumbnail;
-        })
-        .for_each(drop);
-
-    Ok(())
 }

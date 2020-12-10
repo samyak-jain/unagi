@@ -1,15 +1,12 @@
-use std::{
-    error::Error,
-    path::PathBuf,
-    process::{Command, Output},
-};
+use std::{path::PathBuf, process::Command};
 
-use crate::SETTINGS;
+use crate::errors::TranscodingError;
 
 pub fn start_transcoding(
     source_path: PathBuf,
     destination_path: PathBuf,
-) -> Result<Output, Box<dyn Error>> {
+    is_hw_enabled: bool,
+) -> Result<Command, TranscodingError> {
     let resolution = "";
 
     let mut destination_files = destination_path.clone();
@@ -20,8 +17,6 @@ pub fn start_transcoding(
     destination_playlist.push(resolution);
     destination_playlist.set_extension("m3u8");
 
-    let is_hw_enabled = SETTINGS.read()?.get_bool("HW_ACCEL")?;
-
     let mut ffmpeg = Command::new("/usr/bin/ffmpeg");
     let command = match is_hw_enabled {
         true => ffmpeg
@@ -31,7 +26,7 @@ pub fn start_transcoding(
         false => ffmpeg.arg("-i"),
     };
 
-    Ok(command
+    command
         .arg(source_path)
         .args(&["-c:a", "copy"])
         .args(&["-c:v", if is_hw_enabled { "h264_nvenc" } else { "h264" }])
@@ -41,6 +36,7 @@ pub fn start_transcoding(
         .args(&["-hls_playlist_type", "vod"])
         .arg("-hls_segment_filename")
         .arg(destination_files)
-        .arg(destination_playlist)
-        .output()?)
+        .arg(destination_playlist);
+
+    Ok(ffmpeg)
 }

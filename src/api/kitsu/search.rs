@@ -29,6 +29,6 @@ pub async fn get_season_number(anime: Anime) -> Result<i64, Box<dyn Error>> {
     }
 }
 
-pub async fn get_show_season(anime: Anime, season: i32) {
+pub async fn get_show_season(anime: Anime) {
     let current_season = get_season_number(anime);
 }

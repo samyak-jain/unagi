@@ -2,13 +2,16 @@ use std::{fs, path::PathBuf};
 
 use anitomy::{Anitomy, ElementCategory};
 
+#[derive(Clone, Default)]
 pub struct Episode {
     pub name: String,
-    path_raw: PathBuf,
+    pub number: Option<String>,
+    pub path_raw: PathBuf,
     pub path: String,
     pub thumbnail: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct Show {
     pub name: String,
     pub path: String,
@@ -47,13 +50,18 @@ impl Library {
                         .into_string()
                         .ok()
                         .and_then(|episode_name| {
+                            let mut an_name = String::from(episode_name.clone());
+                            let mut an_number: Option<String> = None;
+                            if let Ok(elements) = anitomy.parse(episode_name.clone()) {
+                                an_name =
+                                    String::from(elements.get(ElementCategory::EpisodeTitle)?);
+                                an_number = Some(String::from(
+                                    elements.get(ElementCategory::EpisodeNumber)?,
+                                ));
+                            }
                             Some(Episode {
-                                name: match anitomy.parse(episode_name.clone()) {
-                                    Ok(ref elements) => {
-                                        String::from(elements.get(ElementCategory::AnimeTitle)?)
-                                    }
-                                    Err(_) => String::from(episode_name),
-                                },
+                                name: an_name,
+                                number: an_number,
                                 path_raw: ep.as_ref().ok()?.path(),
                                 path: String::from(ep.as_ref().ok()?.path().to_str()?),
                                 thumbnail: None,
@@ -84,7 +92,7 @@ impl Library {
 
     pub fn read_library(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.path_raw.is_dir() {
-            self.shows = fs::read_dir(&self.path)?
+            self.shows = fs::read_dir(&self.path_raw)?
                 .map(|p| Library::read_episodes(p.unwrap().path()))
                 .filter_map(Result::ok)
                 .collect();

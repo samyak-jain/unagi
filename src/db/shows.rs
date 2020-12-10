@@ -3,7 +3,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 
 use crate::{models::show::Show, schema::shows};
 
-#[derive(Insertable)]
+#[derive(Insertable, Debug)]
 #[table_name = "shows"]
 pub struct ShowNew {
     title: String,
@@ -30,6 +30,7 @@ pub fn create(
         banner_image: None,
     };
 
+    info!("{:#?}", new_show);
     let result_id = diesel::insert_into(shows::table)
         .values(new_show)
         .get_result::<Show>(conn)?

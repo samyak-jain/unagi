@@ -1,18 +1,31 @@
-use std::sync::{PoisonError, RwLockWriteGuard};
+use std::{
+    collections::HashMap,
+    fmt,
+    sync::Arc,
+    sync::{MutexGuard, PoisonError, RwLockReadGuard, RwLockWriteGuard},
+};
 
 use config::{Config, ConfigError};
 use rocket::response::Responder;
 use rocket::{http::Status, response::NamedFile};
 use rocket_contrib::json::JsonValue;
+use shared_child::SharedChild;
 
 pub enum ApiError {
     DieselError(diesel::result::Error),
     ConfigError(Option<ConfigError>),
     IOError(std::io::Error),
+    TranscodingError(TranscodingError),
+    MutexError,
 }
 
 pub type ApiResponse = Result<JsonValue, ApiError>;
 pub type FileResponse = Result<NamedFile, ApiError>;
+
+#[derive(Debug)]
+pub struct TranscodingError {
+    pub error: String,
+}
 
 impl Responder<'_, 'static> for ApiError {
     fn respond_to(self, request: &rocket::Request<'_>) -> rocket::response::Result<'static> {
@@ -28,6 +41,8 @@ impl Responder<'_, 'static> for ApiError {
                 None => String::from("Error in setting configuration"),
             },
             ApiError::IOError(error) => String::from(error.to_string()),
+            ApiError::TranscodingError(error) => String::from(error.to_string()),
+            ApiError::MutexError => String::from("Mutex was not able to lock properly"),
         };
 
         error!("{}", message);
@@ -51,6 +66,18 @@ impl<'a> From<PoisonError<RwLockWriteGuard<'a, Config>>> for ApiError {
     }
 }
 
+impl<'a> From<PoisonError<RwLockReadGuard<'a, Config>>> for ApiError {
+    fn from(_: PoisonError<RwLockReadGuard<'a, Config>>) -> Self {
+        ApiError::ConfigError(None)
+    }
+}
+
+impl<'a> From<PoisonError<MutexGuard<'a, HashMap<String, Arc<SharedChild>>>>> for ApiError {
+    fn from(_: PoisonError<MutexGuard<'a, HashMap<String, Arc<SharedChild>>>>) -> Self {
+        ApiError::MutexError
+    }
+}
+
 impl From<ConfigError> for ApiError {
     fn from(error: ConfigError) -> Self {
         ApiError::ConfigError(Some(error))
@@ -58,7 +85,27 @@ impl From<ConfigError> for ApiError {
 }
 
 impl From<std::io::Error> for ApiError {
-    fn from(error: std::io::Error) -> ApiError {
+    fn from(error: std::io::Error) -> Self {
         ApiError::IOError(error)
+    }
+}
+
+impl From<TranscodingError> for ApiError {
+    fn from(error: TranscodingError) -> Self {
+        ApiError::TranscodingError(error)
+    }
+}
+
+impl fmt::Display for TranscodingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Error in transcoding")
+    }
+}
+
+impl From<std::io::Error> for TranscodingError {
+    fn from(error: std::io::Error) -> Self {
+        TranscodingError {
+            error: error.to_string(),
+        }
     }
 }

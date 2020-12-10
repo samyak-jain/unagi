@@ -25,10 +25,11 @@ pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiRe
             library.read_library().unwrap();
             for mut show in library.shows {
                 match show.fetch_anime() {
-                    Ok(_) => {}
+                    Ok(_) => {
+                        db::shows::create(c, show, new_library_id).unwrap();
+                    }
                     Err(error) => error!("{}", error.to_string()),
                 }
-                db::shows::create(c, show, new_library_id).unwrap();
             }
             new_library_id
         })

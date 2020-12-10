@@ -22,7 +22,6 @@ table! {
         id -> Int4,
         library_id -> Int4,
         title -> Varchar,
-        image -> Nullable<Varchar>,
         file_path -> Varchar,
         description -> Nullable<Varchar>,
         cover_image -> Nullable<Varchar>,

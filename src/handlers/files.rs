@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf};
 
 use anitomy::{Anitomy, ElementCategory};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug)]
 pub struct Episode {
     pub name: String,
     pub number: Option<String>,
@@ -11,7 +11,7 @@ pub struct Episode {
     pub thumbnail: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Show {
     pub name: String,
     pub path: String,

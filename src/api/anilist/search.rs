@@ -83,6 +83,9 @@ impl Show {
                 }
             }
         }
+
+        info!("{:#?}", self);
+
         Ok(())
     }
 }

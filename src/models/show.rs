@@ -9,7 +9,6 @@ pub struct Show {
     pub id: i32,
     pub library_id: i32,
     pub title: String,
-    pub image: Option<String>,
     pub file_path: String,
     pub description: Option<String>,
     pub cover_image: Option<String>,

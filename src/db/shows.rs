@@ -8,7 +8,6 @@ use crate::{models::show::Show, schema::shows};
 pub struct ShowNew {
     title: String,
     library_id: i32,
-    image: Option<String>,
     file_path: String,
     description: Option<String>,
     cover_image: Option<String>,
@@ -23,14 +22,12 @@ pub fn create(
     let new_show = &ShowNew {
         title: show.name,
         library_id,
-        image: None,
         file_path: show.path,
-        description: None,
-        cover_image: None,
-        banner_image: None,
+        description: show.description,
+        cover_image: show.cover_image,
+        banner_image: show.banner_image,
     };
 
-    info!("{:#?}", new_show);
     let result_id = diesel::insert_into(shows::table)
         .values(new_show)
         .get_result::<Show>(conn)?

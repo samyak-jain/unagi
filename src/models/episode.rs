@@ -3,7 +3,7 @@ use crate::schema::episodes;
 use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Identifiable, Queryable, Serialize, Associations)]
+#[derive(Identifiable, Queryable, Serialize, Associations, Debug)]
 #[belongs_to(show::Show)]
 #[table_name = "episodes"]
 pub struct Episode {

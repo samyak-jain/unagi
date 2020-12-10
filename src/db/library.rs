@@ -1,4 +1,7 @@
-use crate::schema::library;
+use crate::{
+    models::{episode::Episode, show::Show},
+    schema::library,
+};
 use diesel::RunQueryDsl;
 use rocket_contrib::databases::diesel::PgConnection;
 
@@ -27,4 +30,19 @@ pub fn create(
         .id;
 
     Ok(result_id)
+}
+
+pub fn fetch_library(
+    conn: &PgConnection,
+    library_id: i32,
+) -> Result<(Library, Show, Episode), diesel::result::Error> {
+    use self::library::dsl::*;
+    use crate::diesel::BelongingToDsl;
+    use crate::diesel::QueryDsl;
+
+    let result_library: Library = library.find(library_id).get_result::<Library>(conn)?;
+    let result_shows: Show = Show::belonging_to(&result_library).first(conn)?;
+    let result_episodes: Episode = Episode::belonging_to(&result_shows).first(conn)?;
+
+    Ok((result_library, result_shows, result_episodes))
 }

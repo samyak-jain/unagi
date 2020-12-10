@@ -1,7 +1,7 @@
 use crate::schema::library;
 use serde::Serialize;
 
-#[derive(Identifiable, Queryable, Serialize)]
+#[derive(Identifiable, Queryable, Serialize, Debug)]
 #[table_name = "library"]
 pub struct Library {
     pub id: i32,

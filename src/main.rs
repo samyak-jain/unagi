@@ -21,6 +21,7 @@ extern crate dotenv;
 extern crate quick_xml;
 extern crate reqwest;
 extern crate serde;
+extern crate static_http_cache;
 
 use config::Config;
 use dotenv::dotenv;

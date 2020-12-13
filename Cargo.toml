@@ -23,6 +23,7 @@ config = "0.10.1"
 regex = "1.4.2"
 shared_child = "0.3.4"
 quick-xml = { version = "0.20.0", features = [ "serialize" ] }
+static-http-cache = { version = "0.3.0", git = "https://github.com/Matthias-Fauconneau/static-http-cache" }
 
 [dependencies.rocket_contrib]
 version = "0.5.0-dev"
@@ -31,6 +32,8 @@ default-features = false
 features = ["json", "diesel_postgres_pool", "uuid"]
 
 [profile.dev]
+opt-level = 0
+debug = true
 panic = "unwind"
 
 [profile.release]

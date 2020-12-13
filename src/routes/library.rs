@@ -24,11 +24,14 @@ pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiRe
             let mut library = Library::new(library_path, new_library_id);
             library.read_library().unwrap();
             for mut show in library.shows {
+                if db::shows::exists(&c, &show.path).unwrap() {
+                    continue;
+                }
                 let series_id = show.search_anime().unwrap();
                 let season_series_id = get_season(series_id, show.season.clone()).unwrap_or(1);
                 match show.fetch_anime(season_series_id) {
                     Ok(_) => {
-                        db::shows::create(c, show, new_library_id).unwrap();
+                        db::shows::create(&c, show, new_library_id).unwrap();
                     }
                     Err(error) => error!("{}", error.to_string()),
                 }

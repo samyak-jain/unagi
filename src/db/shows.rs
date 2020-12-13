@@ -1,4 +1,4 @@
-use diesel::RunQueryDsl;
+use diesel::{select, RunQueryDsl};
 use rocket_contrib::databases::diesel::PgConnection;
 
 use crate::{models::show::Show, schema::shows};
@@ -39,4 +39,13 @@ pub fn create(
         .collect::<Result<Vec<String>, diesel::result::Error>>()?;
 
     Ok(result_id)
+}
+
+pub fn exists(conn: &PgConnection, path: &str) -> Result<bool, diesel::result::Error> {
+    use self::shows::dsl::*;
+    use crate::diesel::ExpressionMethods;
+    use crate::diesel::QueryDsl;
+    use diesel::dsl::exists;
+
+    select(exists(shows.filter(file_path.eq(path)))).get_result::<bool>(conn)
 }

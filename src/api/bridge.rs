@@ -1,3 +1,6 @@
+use std::io::Read;
+use std::path::PathBuf;
+
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -37,18 +40,23 @@ struct AnimeList {
 }
 
 fn generate_anime_list() -> Option<AnimeList> {
-    let res = reqwest::blocking::get(
-        "https://github.com/ScudLee/anime-lists/raw/master/anime-list-full.xml",
-    )
-    .ok()?;
+    let mut cache =
+        static_http_cache::Cache::new(PathBuf::from("./cache"), reqwest::blocking::Client::new())
+            .ok()?;
 
-    if res.status().is_success() {
-        let body = res.text().ok()?;
-        let anime_list: AnimeList = quick_xml::de::from_str(&body).ok()?;
-        Some(anime_list)
-    } else {
-        None
-    }
+    let mut res = cache
+        .get(
+            reqwest::Url::parse(
+                "https://github.com/ScudLee/anime-lists/raw/master/anime-list-full.xml",
+            )
+            .ok()?,
+        )
+        .ok()?;
+
+    let mut body = String::new();
+    res.read_to_string(&mut body).ok()?;
+    let anime_list: AnimeList = quick_xml::de::from_str(&body).ok()?;
+    Some(anime_list)
 }
 
 fn anidb_to_tvdb(id: i64, anime_list: &AnimeList) -> Option<i64> {

@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, io, path::PathBuf};
 
 use anitomy::{Anitomy, ElementCategory};
 use regex::Regex;
@@ -45,43 +45,54 @@ impl Library {
         let mut anitomy = Anitomy::new();
         let mut shows: Vec<Show> = Vec::new();
         let mut episodes: Vec<Episode> = Vec::new();
-        for entry in fs::read_dir(&path)? {
-            let entry_result = entry?;
-            let metadata = entry_result.metadata()?;
-            let fname = entry_result.file_name().into_string().ok();
+        let e = fs::read_dir(&path)?;
+        let entries = e.collect::<Result<Vec<_>, io::Error>>()?;
+        let entry_length = entries.len();
+        info!("{:#?}", entries[2]);
+        for index in 0..entry_length {
+            info!("{}", index);
+            let entry = &entries[index];
+            let path = entry.path();
+            info!("{:#?}", path);
+            let metadata = entry.metadata()?;
+            let fname = entry
+                .file_name()
+                .into_string()
+                .ok()
+                .ok_or("Cannot get fname")?;
             if metadata.is_file() {
-                if let Some(episode_name) = fname {
-                    if let Ok(elements) = anitomy.parse(episode_name) {
-                        let an_name = String::from(
-                            elements
-                                .get(ElementCategory::EpisodeTitle)
-                                .ok_or("no title")?,
-                        );
-                        let an_number = elements
-                            .get(ElementCategory::EpisodeNumber)
-                            .map(|e| String::from(e));
-                        episodes.push(Episode {
-                            name: an_name,
-                            number: an_number,
-                            path_raw: entry_result.path(),
-                            thumbnail: None,
-                            path: String::from(
-                                path.to_str().ok_or("Could not convert path to string")?,
-                            ),
-                        })
-                    }
+                if let Ok(elements) = anitomy.parse(fname) {
+                    let an_name = String::from(
+                        elements
+                            .get(ElementCategory::EpisodeTitle)
+                            .ok_or("no title")?,
+                    );
+                    let an_number = elements
+                        .get(ElementCategory::EpisodeNumber)
+                        .map(|e| String::from(e));
+                    episodes.push(Episode {
+                        name: an_name,
+                        number: an_number,
+                        path_raw: entry.path(),
+                        thumbnail: None,
+                        path: String::from(
+                            path.to_str().ok_or("Could not convert path to string")?,
+                        ),
+                    });
                 }
             } else if metadata.is_dir() {
                 let pattern = Regex::new(r".*(?i:season)\s*(\d+).*")?;
-                let name = fname.ok_or("Could not get season name")?;
                 let cap = pattern
-                    .captures(&name)
+                    .captures(&fname)
                     .ok_or("Could not get season number")?;
                 let season_number = &cap[0].parse::<i64>()?;
-                shows.extend(Library::read_episodes(entry_result.path(), *season_number)?);
+                info!("{}", season_number);
+                shows.extend(Library::read_episodes(entry.path(), *season_number)?);
             }
         }
 
+        info!("{:#?}", episodes);
+        info!("{:#?}", shows);
         shows.push(Show {
             name: String::from(
                 path.file_name()

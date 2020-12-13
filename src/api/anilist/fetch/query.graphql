@@ -8,7 +8,6 @@ query GetAnime($id: Int!) {
       color
     }
     bannerImage
-    episodes
     streamingEpisodes {
       title
       thumbnail
@@ -17,15 +16,6 @@ query GetAnime($id: Int!) {
       english
       romaji
       native
-    }
-    seasonInt
-    relations {
-      edges {
-        relationType
-        node {
-           	id
-      	}
-      }
     }
   }
 }

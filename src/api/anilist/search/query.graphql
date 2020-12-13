@@ -1,0 +1,5 @@
+query GetAnime($name: String!) {
+  Media(search: $name, type: ANIME) {
+    id
+  }
+}

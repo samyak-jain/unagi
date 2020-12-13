@@ -1,6 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use anitomy::{Anitomy, ElementCategory};
+use regex::Regex;
 
 #[derive(Clone, Debug)]
 pub struct Episode {
@@ -18,6 +19,7 @@ pub struct Show {
     pub description: Option<String>,
     pub banner_image: Option<String>,
     pub cover_image: Option<String>,
+    pub season: i64,
     path_raw: PathBuf,
     pub episodes: Vec<Episode>,
 }
@@ -39,62 +41,72 @@ impl Library {
         }
     }
 
-    fn read_episodes(path: PathBuf) -> Result<Show, Box<dyn std::error::Error>> {
+    fn read_episodes(path: PathBuf, season: i64) -> Result<Vec<Show>, Box<dyn std::error::Error>> {
         let mut anitomy = Anitomy::new();
-        let episodes: Vec<Episode> = fs::read_dir(&path)?
-            .filter_map(|ep| {
-                if ep.as_ref().ok()?.file_type().ok()?.is_file() {
-                    ep.as_ref()
-                        .ok()?
-                        .file_name()
-                        .into_string()
-                        .ok()
-                        .and_then(|episode_name| {
-                            let mut an_name = String::from(episode_name.clone());
-                            let mut an_number: Option<String> = None;
-                            if let Ok(elements) = anitomy.parse(episode_name.clone()) {
-                                an_name =
-                                    String::from(elements.get(ElementCategory::EpisodeTitle)?);
-                                an_number = Some(String::from(
-                                    elements.get(ElementCategory::EpisodeNumber)?,
-                                ));
-                            }
-                            Some(Episode {
-                                name: an_name,
-                                number: an_number,
-                                path_raw: ep.as_ref().ok()?.path(),
-                                path: String::from(ep.as_ref().ok()?.path().to_str()?),
-                                thumbnail: None,
-                            })
+        let mut shows: Vec<Show> = Vec::new();
+        let mut episodes: Vec<Episode> = Vec::new();
+        for entry in fs::read_dir(&path)? {
+            let entry_result = entry?;
+            let metadata = entry_result.metadata()?;
+            let fname = entry_result.file_name().into_string().ok();
+            if metadata.is_file() {
+                if let Some(episode_name) = fname {
+                    if let Ok(elements) = anitomy.parse(episode_name) {
+                        let an_name = String::from(
+                            elements
+                                .get(ElementCategory::EpisodeTitle)
+                                .ok_or("no title")?,
+                        );
+                        let an_number = elements
+                            .get(ElementCategory::EpisodeNumber)
+                            .map(|e| String::from(e));
+                        episodes.push(Episode {
+                            name: an_name,
+                            number: an_number,
+                            path_raw: entry_result.path(),
+                            thumbnail: None,
+                            path: String::from(
+                                path.to_str().ok_or("Could not convert path to string")?,
+                            ),
                         })
-                } else {
-                    None
+                    }
                 }
-            })
-            .collect();
+            } else if metadata.is_dir() {
+                let pattern = Regex::new(r".*(?i:season)\s*(\d+).*")?;
+                let name = fname.ok_or("Could not get season name")?;
+                let cap = pattern
+                    .captures(&name)
+                    .ok_or("Could not get season number")?;
+                let season_number = &cap[0].parse::<i64>()?;
+                shows.extend(Library::read_episodes(entry_result.path(), *season_number)?);
+            }
+        }
 
-        Ok(Show {
-            name: path
-                .file_name()
-                .ok_or("Could not get directory name")?
-                .to_os_string()
-                .into_string()
-                .ok()
-                .ok_or("Could not get directory name")?,
+        shows.push(Show {
+            name: String::from(
+                path.file_name()
+                    .ok_or("Could not get show name")?
+                    .to_str()
+                    .ok_or("Could not convert show name to str")?,
+            ),
             path: String::from(path.to_str().ok_or("Could not convert path to string")?),
             description: None,
             banner_image: None,
             cover_image: None,
-            path_raw: path.clone(),
+            season,
             episodes,
-        })
+            path_raw: path,
+        });
+
+        Ok(shows)
     }
 
     pub fn read_library(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.path_raw.is_dir() {
             self.shows = fs::read_dir(&self.path_raw)?
-                .map(|p| Library::read_episodes(p.unwrap().path()))
+                .map(|p| Library::read_episodes(p.unwrap().path(), 1))
                 .filter_map(Result::ok)
+                .flatten()
                 .collect();
             Ok(())
         } else {

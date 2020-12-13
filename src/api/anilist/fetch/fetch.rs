@@ -7,7 +7,7 @@ use crate::handlers::files::Show;
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/api/anilist/schema.graphql",
-    query_path = "src/api/anilist/query.graphql",
+    query_path = "src/api/anilist/fetch/query.graphql",
     response_derives = "Debug"
 )]
 struct GetAnime;
@@ -30,10 +30,8 @@ impl Show {
         Some(())
     }
 
-    pub fn fetch_anime(&mut self) -> Result<(), Box<dyn Error>> {
-        let request_body = GetAnime::build_query(get_anime::Variables {
-            name: self.name.to_owned(),
-        });
+    pub fn fetch_anime(&mut self, anilist_id: i64) -> Result<(), Box<dyn Error>> {
+        let request_body = GetAnime::build_query(get_anime::Variables { id: anilist_id });
         let client = reqwest::blocking::Client::new();
         let res = client
             .post("https://graphql.anilist.co/")
@@ -45,8 +43,6 @@ impl Show {
             error!("GraphQLQuery not successfull");
             return Ok(());
         }
-
-        // name, cover_image, banner_image, description, episode name, episode thumbnail
 
         let response_data: get_anime::ResponseData =
             response_body.data.ok_or("Invalid GraphQL Response")?;
@@ -83,8 +79,6 @@ impl Show {
                 }
             }
         }
-
-        info!("{:#?}", self);
 
         Ok(())
     }

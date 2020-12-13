@@ -18,6 +18,7 @@ extern crate lazy_static;
 extern crate anitomy;
 extern crate config;
 extern crate dotenv;
+extern crate quick_xml;
 extern crate reqwest;
 extern crate serde;
 

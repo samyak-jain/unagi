@@ -3,8 +3,9 @@ use diesel::RunQueryDsl;
 use rocket_contrib::databases::diesel::PgConnection;
 use uuid::Uuid;
 
-#[derive(Insertable)]
+#[derive(Insertable, AsChangeset)]
 #[table_name = "episodes"]
+#[changeset_options(treat_none_as_null = "true")]
 pub struct EpisodeNew {
     name: Option<String>,
     show_id: i32,
@@ -15,25 +16,37 @@ pub struct EpisodeNew {
 
 pub fn create(
     conn: &PgConnection,
-    episode: crate::handlers::files::Episode,
-    show_id: i32,
-) -> Result<String, diesel::result::Error> {
-    let locator_id = Uuid::new_v4();
+    episode: &crate::handlers::files::Episode,
+    new_show_id: i32,
+) -> Result<i32, diesel::result::Error> {
+    use self::episodes::dsl::*;
+    use crate::diesel::ExpressionMethods;
+    use crate::diesel::QueryDsl;
+
+    let new_locator_id = Uuid::new_v4();
 
     let new_episode = &EpisodeNew {
-        show_id,
-        file_path: episode.path,
-        locator_id,
-        name: Some(episode.name),
+        show_id: new_show_id,
+        file_path: episode.path.clone(),
+        locator_id: new_locator_id,
+        name: Some(episode.name.clone()),
         thumbnail: None,
     };
 
-    let result_path = diesel::insert_into(episodes::table)
-        .values(new_episode)
-        .get_result::<Episode>(conn)?
-        .file_path;
+    let result_id = if exists(conn, &episode.path)? {
+        let target = episodes.filter(file_path.eq(episode.path.clone()));
+        diesel::update(target)
+            .set(new_episode)
+            .get_result::<Episode>(conn)?
+            .show_id
+    } else {
+        diesel::insert_into(episodes)
+            .values(new_episode)
+            .get_result::<Episode>(conn)?
+            .show_id
+    };
 
-    Ok(result_path)
+    Ok(result_id)
 }
 
 pub fn fetch(conn: &PgConnection, episode_uuid: Uuid) -> Result<String, diesel::result::Error> {
@@ -44,4 +57,14 @@ pub fn fetch(conn: &PgConnection, episode_uuid: Uuid) -> Result<String, diesel::
     let episode: Episode = episodes.filter(locator_id.eq(episode_uuid)).first(conn)?;
 
     Ok(episode.file_path)
+}
+
+fn exists(conn: &PgConnection, path: &str) -> Result<bool, diesel::result::Error> {
+    use self::episodes::dsl::*;
+    use crate::diesel::ExpressionMethods;
+    use crate::diesel::QueryDsl;
+    use diesel::dsl::exists;
+    use diesel::select;
+
+    select(exists(episodes.filter(file_path.eq(path)))).get_result(conn)
 }

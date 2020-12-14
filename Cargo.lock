@@ -283,6 +283,7 @@ dependencies = [
  "graphql_client",
  "lazy_static",
  "quick-xml",
+ "rand",
  "regex",
  "reqwest",
  "rocket",

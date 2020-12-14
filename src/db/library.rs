@@ -46,3 +46,13 @@ pub fn fetch_library(
 
     Ok((result_library, result_shows, result_episodes))
 }
+
+pub fn exists(conn: &PgConnection, path: &str) -> Result<bool, diesel::result::Error> {
+    use self::library::dsl::*;
+    use crate::diesel::ExpressionMethods;
+    use crate::diesel::QueryDsl;
+    use diesel::dsl::exists;
+    use diesel::select;
+
+    select(exists(library.filter(location.eq(path)))).get_result(conn)
+}

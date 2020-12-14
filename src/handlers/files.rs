@@ -26,6 +26,7 @@ pub struct Show {
 
 pub struct Library {
     pub path: String,
+    pub thumbnail: Option<String>,
     path_raw: PathBuf,
     pub shows: Vec<Show>,
     pub lib_id: i32,
@@ -38,6 +39,7 @@ impl Library {
             path_raw: PathBuf::from(path_string),
             shows: vec![],
             lib_id: library_id,
+            thumbnail: None,
         }
     }
 
@@ -119,6 +121,7 @@ impl Library {
                 .filter_map(Result::ok)
                 .flatten()
                 .collect();
+
             Ok(())
         } else {
             bail!("Supplied Path is not a directory")

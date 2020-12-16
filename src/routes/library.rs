@@ -1,4 +1,8 @@
-use crate::{api::bridge::get_season, errors::ApiResponse, handlers::montage};
+use crate::{
+    api::bridge::{generate_anime_list, get_season},
+    errors::ApiResponse,
+    handlers::montage,
+};
 use rand::seq::SliceRandom;
 use rocket_contrib::json::Json;
 use serde::Deserialize;
@@ -27,9 +31,11 @@ pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiRe
                 db::library::create(&c, new_library.name, library_path.clone()).unwrap();
             let mut library = Library::new(library_path, new_library_id);
             library.read_library().unwrap();
+            let anime_list = generate_anime_list().unwrap();
             for show in &mut library.shows {
                 let series_id = show.search_anime().unwrap();
-                let season_series_id = get_season(series_id, show.season.clone()).unwrap_or(1);
+                let season_series_id =
+                    get_season(series_id, show.season.clone(), &anime_list).unwrap_or(1);
                 match show.fetch_anime(season_series_id) {
                     Ok(_) => {
                         db::shows::create(&c, show, new_library_id).unwrap();
@@ -69,12 +75,14 @@ pub async fn update_library(id: i32, force: bool, conn: db::Conn) -> ApiResponse
         let (db_lib, _, _) = db::library::fetch_library(&c, id).unwrap();
         let mut library = Library::new(db_lib.location, db_lib.id);
         library.read_library().unwrap();
+        let anime_list = generate_anime_list().unwrap();
         for show in &mut library.shows {
             if force && db::shows::exists(&c, &show.path).unwrap() {
                 continue;
             }
             let series_id = show.search_anime().unwrap();
-            let season_series_id = get_season(series_id, show.season.clone()).unwrap_or(1);
+            let season_series_id =
+                get_season(series_id, show.season.clone(), &anime_list).unwrap_or(1);
             match show.fetch_anime(season_series_id) {
                 Ok(_) => {
                     db::shows::create(&c, show, db_lib.id).unwrap();

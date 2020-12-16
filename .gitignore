@@ -1,3 +1,4 @@
 .env
 Session.vim
 /target
+cache/

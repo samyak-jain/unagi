@@ -91,13 +91,21 @@ impl Library {
                         entry.path(),
                         season_number.unwrap(),
                     )?);
+                    return Ok(shows);
                 }
             }
         }
 
+        let show_name_path = if season == 1 {
+            path.as_path()
+        } else {
+            path.parent().ok_or("Could not get parent of path")?
+        };
+
         shows.push(Show {
             name: String::from(
-                path.file_name()
+                show_name_path
+                    .file_name()
                     .ok_or("Could not get show name")?
                     .to_str()
                     .ok_or("Could not convert show name to str")?,

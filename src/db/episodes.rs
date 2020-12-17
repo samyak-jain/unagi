@@ -9,6 +9,7 @@ use uuid::Uuid;
 pub struct EpisodeNew {
     name: Option<String>,
     show_id: i32,
+    episode_number: Option<i32>,
     thumbnail: Option<String>,
     file_path: String,
     locator_id: Uuid,
@@ -28,6 +29,7 @@ pub fn create(
     let new_episode = &EpisodeNew {
         show_id: new_show_id,
         file_path: episode.path.clone(),
+        episode_number: episode.number,
         locator_id: new_locator_id,
         name: Some(episode.name.clone()),
         thumbnail: None,

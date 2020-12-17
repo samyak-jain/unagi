@@ -19,10 +19,11 @@ impl Show {
         name: String,
         thumbnail: Option<String>,
     ) -> Option<()> {
+        let int_number: i32 = number.parse().ok()?;
         let ep_index = self
             .episodes
             .iter()
-            .position(|ep| ep.number == Some(number.clone()))?;
+            .position(|ep| ep.number == Some(int_number))?;
 
         self.episodes[ep_index].name = name;
         self.episodes[ep_index].thumbnail = thumbnail;
@@ -71,7 +72,7 @@ impl Show {
                     Some(ep) => {
                         if let Some(title) = ep.title {
                             if let Some(ep_num) = pattern.captures(title.as_str()) {
-                                self.update_episode(String::from(&ep_num[0]), title, ep.thumbnail);
+                                self.update_episode(String::from(&ep_num[1]), title, ep.thumbnail);
                             }
                         }
                     }

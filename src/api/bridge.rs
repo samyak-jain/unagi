@@ -50,10 +50,10 @@ where
     if let Some(st) = s {
         match st.parse::<i64>() {
             Ok(num) => Ok(num),
-            Err(_) => Ok(-10),
+            Err(_) => Ok(-1),
         }
     } else {
-        Ok(-10)
+        Ok(-1)
     }
 }
 
@@ -67,12 +67,7 @@ pub fn generate_anime_list() -> Result<AnimeList, Box<dyn Error>> {
 
     let mut body = String::new();
     res.read_to_string(&mut body)?;
-    let mut anime_list: AnimeList = quick_xml::de::from_str(&body)?;
-    anime_list.anime = anime_list
-        .anime
-        .into_iter()
-        .filter(|anime| anime.defaulttvdbseason != -10 && anime.tvdbid != -10)
-        .collect::<Vec<AnimeMap>>();
+    let anime_list: AnimeList = quick_xml::de::from_str(&body)?;
     Ok(anime_list)
 }
 
@@ -93,7 +88,10 @@ fn season_to_anidb(season: i64, tvdb_id: i64, anime_list: &AnimeList) -> Option<
         anime_list
             .anime
             .iter()
-            .filter(|anime| anime.defaulttvdbseason == season && anime.tvdbid == tvdb_id)
+            .filter(|anime| {
+                anime.tvdbid == tvdb_id
+                    && (anime.defaulttvdbseason == season || anime.defaulttvdbseason == -1)
+            })
             .collect::<Vec<&AnimeMap>>()
             .first()?
             .anidbid,

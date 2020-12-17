@@ -13,4 +13,5 @@ pub struct Episode {
     pub thumbnail: Option<String>,
     pub file_path: String,
     pub locator_id: Uuid,
+    pub episode_number: Option<i32>,
 }

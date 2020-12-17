@@ -6,6 +6,7 @@ table! {
         thumbnail -> Nullable<Varchar>,
         file_path -> Varchar,
         locator_id -> Uuid,
+        episode_number -> Nullable<Int4>,
     }
 }
 
@@ -26,6 +27,7 @@ table! {
         description -> Nullable<Varchar>,
         cover_image -> Nullable<Varchar>,
         banner_image -> Nullable<Varchar>,
+        season -> Int8,
     }
 }
 

@@ -35,7 +35,7 @@ pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiRe
             for show in &mut library.shows {
                 let series_id = show.search_anime().unwrap();
                 let season_series_id =
-                    get_season(series_id, show.season.clone(), &anime_list).unwrap_or(1);
+                    get_season(series_id, show.season.clone(), &anime_list).unwrap_or(series_id);
                 match show.fetch_anime(season_series_id) {
                     Ok(_) => {
                         db::shows::create(&c, show, new_library_id).unwrap();

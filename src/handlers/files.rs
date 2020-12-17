@@ -50,7 +50,6 @@ impl Library {
         season: i64,
         parent: bool,
     ) -> Result<Vec<Show>, Box<dyn std::error::Error>> {
-        info!("Path: {:#?}", path);
         let mut anitomy = Anitomy::new();
         let mut shows: Vec<Show> = Vec::new();
         let mut episodes: Vec<Episode> = Vec::new();
@@ -58,6 +57,7 @@ impl Library {
             let entry = entry?;
             let path = entry.path();
             let metadata = entry.metadata()?;
+            let pattern = Regex::new(r".*(?i:season)\s*(\d+).*")?;
             let fname = entry
                 .file_name()
                 .into_string()
@@ -79,8 +79,6 @@ impl Library {
                             .get(ElementCategory::EpisodeNumber)
                             .map(|e| String::from(e));
 
-                        info!("name: {}, number: {:#?}", an_name, an_number);
-
                         episodes.push(Episode {
                             name: an_name,
                             number: an_number.map(|num| num.parse()).transpose()?,
@@ -92,14 +90,12 @@ impl Library {
                         });
                     }
                 }
-            } else if metadata.is_dir() {
-                let pattern = Regex::new(r".*(?i:season)\s*(\d+).*")?;
+            } else if metadata.is_dir() && pattern.is_match(&fname) {
                 let cap = pattern
                     .captures(&fname)
                     .ok_or("Could not get season number")?;
                 let season_number = String::from(&cap[1]).parse::<i64>();
                 if season_number.is_err() {
-                    info!("Capture: {}", &cap[1]);
                     bail!("parse error");
                 } else {
                     shows.extend(Library::read_episodes(

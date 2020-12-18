@@ -4,6 +4,7 @@ use anitomy::{Anitomy, ElementCategory};
 use regex::Regex;
 
 const SUPPORTED_FILETYPES: &[&str] = &["mkv", "mp4"];
+const EXCLUDE_FILENAMES: &[&str] = &["NCOP", "NCED"];
 
 #[derive(Clone, Debug)]
 pub struct Episode {
@@ -64,6 +65,9 @@ impl Library {
                 .ok()
                 .ok_or("Cannot get fname")?;
             if metadata.is_file() {
+                if EXCLUDE_FILENAMES.contains(&&fname[..]) {
+                    continue;
+                }
                 if let Some(extension) = path.extension().and_then(OsStr::to_str) {
                     if SUPPORTED_FILETYPES.contains(&extension) {
                         let elements = match anitomy.parse(fname.clone()) {

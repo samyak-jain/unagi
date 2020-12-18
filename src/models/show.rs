@@ -14,4 +14,5 @@ pub struct Show {
     pub cover_image: Option<String>,
     pub banner_image: Option<String>,
     pub season: i64,
+    pub parent_season: i64,
 }

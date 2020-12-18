@@ -28,6 +28,7 @@ table! {
         cover_image -> Nullable<Varchar>,
         banner_image -> Nullable<Varchar>,
         season -> Int8,
+        parent_season -> Int8,
     }
 }
 

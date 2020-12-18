@@ -14,12 +14,14 @@ pub struct ShowNew {
     description: Option<String>,
     cover_image: Option<String>,
     banner_image: Option<String>,
+    parent_season: i64,
 }
 
 pub fn create(
     conn: &PgConnection,
     show: &mut crate::handlers::files::Show,
     current_library_id: i32,
+    seasonid: i64,
 ) -> Result<i32, diesel::result::Error> {
     use self::shows::dsl::*;
     use crate::diesel::ExpressionMethods;
@@ -33,6 +35,7 @@ pub fn create(
         description: show.description.clone(),
         cover_image: show.cover_image.clone(),
         banner_image: show.banner_image.clone(),
+        parent_season: seasonid,
     };
 
     let result_id = if exists(conn, &show.path)? {

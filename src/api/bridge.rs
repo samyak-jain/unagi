@@ -30,11 +30,15 @@ fn anidb_to_anilist(id: i64) -> Option<i64> {
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AnimeMap {
     anidbid: i64,
+
     #[serde(deserialize_with = "string_as_i64")]
     tvdbid: i64,
+
     #[serde(default)]
     #[serde(deserialize_with = "string_as_i64")]
     defaulttvdbseason: i64,
+
+    episodeoffset: Option<i64>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -84,18 +88,23 @@ fn anidb_to_tvdb(id: i64, anime_list: &AnimeList) -> Option<i64> {
 }
 
 fn season_to_anidb(season: i64, tvdb_id: i64, anime_list: &AnimeList) -> Option<i64> {
-    Some(
-        anime_list
-            .anime
-            .iter()
-            .filter(|anime| {
-                anime.tvdbid == tvdb_id
-                    && (anime.defaulttvdbseason == season || anime.defaulttvdbseason == -1)
-            })
-            .collect::<Vec<&AnimeMap>>()
-            .first()?
-            .anidbid,
-    )
+    let mut filtered_list = anime_list
+        .anime
+        .iter()
+        .filter(|anime| {
+            anime.tvdbid == tvdb_id
+                && (anime.defaulttvdbseason == season || anime.defaulttvdbseason == -1)
+        })
+        .collect::<Vec<&AnimeMap>>();
+
+    filtered_list.sort_unstable_by_key(|anime| anime.episodeoffset);
+
+    let anime_list_index = season as usize;
+    if anime_list_index >= filtered_list.len() {
+        Some(filtered_list.first()?.anidbid)
+    } else {
+        Some(filtered_list[anime_list_index].anidbid)
+    }
 }
 
 pub fn get_season(id: i64, season_number: i64, anime_list: &AnimeList) -> Option<i64> {

@@ -38,7 +38,7 @@ pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiRe
                     get_season(series_id, show.season.clone(), &anime_list).unwrap_or(series_id);
                 match show.fetch_anime(season_series_id) {
                     Ok(_) => {
-                        db::shows::create(&c, show, new_library_id).unwrap();
+                        db::shows::create(&c, show, new_library_id, series_id).unwrap();
                     }
                     Err(error) => error!("{}", error.to_string()),
                 }
@@ -85,7 +85,7 @@ pub async fn update_library(id: i32, force: bool, conn: db::Conn) -> ApiResponse
                 get_season(series_id, show.season.clone(), &anime_list).unwrap_or(1);
             match show.fetch_anime(season_series_id) {
                 Ok(_) => {
-                    db::shows::create(&c, show, db_lib.id).unwrap();
+                    db::shows::create(&c, show, db_lib.id, series_id).unwrap();
                 }
                 Err(error) => error!("{}", error.to_string()),
             }

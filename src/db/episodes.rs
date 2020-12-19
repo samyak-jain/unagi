@@ -1,4 +1,7 @@
-use crate::{models::episode::Episode, schema::episodes};
+use crate::{
+    models::{episode::Episode, show::Show},
+    schema::{episodes, shows},
+};
 use diesel::RunQueryDsl;
 use rocket_contrib::databases::diesel::PgConnection;
 use uuid::Uuid;
@@ -59,6 +62,15 @@ pub fn fetch(conn: &PgConnection, episode_uuid: Uuid) -> Result<String, diesel::
     let episode: Episode = episodes.filter(locator_id.eq(episode_uuid)).first(conn)?;
 
     Ok(episode.file_path)
+}
+
+pub fn get(conn: &PgConnection, show_id: i32) -> Result<Vec<Episode>, diesel::result::Error> {
+    use self::shows::dsl::*;
+    use crate::diesel::BelongingToDsl;
+    use crate::diesel::QueryDsl;
+
+    let result_show: Show = shows.find(show_id).get_result::<Show>(conn)?;
+    Episode::belonging_to(&result_show).load::<Episode>(conn)
 }
 
 fn exists(conn: &PgConnection, path: &str) -> Result<bool, diesel::result::Error> {

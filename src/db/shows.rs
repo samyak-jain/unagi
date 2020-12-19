@@ -1,7 +1,10 @@
 use diesel::{select, RunQueryDsl};
 use rocket_contrib::databases::diesel::PgConnection;
 
-use crate::{models::show::Show, schema::shows};
+use crate::{
+    models::{library::Library, show::Show},
+    schema::{library, shows},
+};
 
 #[derive(Insertable, Debug, AsChangeset)]
 #[table_name = "shows"]
@@ -57,6 +60,15 @@ pub fn create(
         .collect::<Result<Vec<i32>, diesel::result::Error>>()?;
 
     Ok(result_id)
+}
+
+pub fn get(conn: &PgConnection, library_id: i32) -> Result<Vec<Show>, diesel::result::Error> {
+    use self::library::dsl::*;
+    use crate::diesel::BelongingToDsl;
+    use crate::diesel::QueryDsl;
+
+    let result_library: Library = library.find(library_id).get_result::<Library>(conn)?;
+    Show::belonging_to(&result_library).load::<Show>(conn)
 }
 
 pub fn exists(conn: &PgConnection, path: &str) -> Result<bool, diesel::result::Error> {

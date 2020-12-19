@@ -1,4 +1,5 @@
 pub mod config;
-pub mod fetch;
+pub mod episodes;
 pub mod files;
 pub mod library;
+pub mod shows;

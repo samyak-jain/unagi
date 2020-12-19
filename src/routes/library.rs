@@ -72,7 +72,7 @@ pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiRe
 #[post("/update/library/<id>/<force>")]
 pub async fn update_library(id: i32, force: bool, conn: db::Conn) -> ApiResponse {
     conn.run(move |c| {
-        let (db_lib, _, _) = db::library::fetch_library(&c, id).unwrap();
+        let db_lib = db::library::get(&c, id).unwrap();
         let mut library = Library::new(db_lib.location, db_lib.id);
         library.read_library().unwrap();
         let anime_list = generate_anime_list().unwrap();
@@ -104,5 +104,15 @@ pub async fn update_library(id: i32, force: bool, conn: db::Conn) -> ApiResponse
 
     Ok(json!({
         "status": "success",
+    }))
+}
+
+#[get("/library/<id>")]
+pub async fn fetch(id: i32, conn: db::Conn) -> ApiResponse {
+    let library = conn.run(move |c| db::library::get(c, id)).await?;
+
+    Ok(json!({
+        "status": "success",
+        "library": library,
     }))
 }

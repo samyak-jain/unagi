@@ -51,7 +51,12 @@ async fn main() {
     rocket::ignite()
         .mount(
             "/",
-            routes![hello, routes::library::add_library, routes::files::serve],
+            routes![
+                hello,
+                routes::library::add_library,
+                routes::files::serve,
+                routes::library::fetch
+            ],
         )
         .attach(db::Conn::fairing())
         .launch()

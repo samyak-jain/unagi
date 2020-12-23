@@ -1,6 +1,9 @@
 [package]
-name = "denki"
+name = "capelin"
 version = "0.1.0"
+license-file = "LICENSE"
+description = "A media library server written in Rust"
+repository = "https://github.com/samyak-jain/capelin"
 authors = ["samyak-jain <samtan106@gmail.com>"]
 edition = "2018"
 

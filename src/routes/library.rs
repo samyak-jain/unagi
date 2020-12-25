@@ -3,7 +3,7 @@ use crate::{
     errors::ApiResponse,
     handlers::montage,
 };
-use rand::seq::SliceRandom;
+use rand::prelude::IteratorRandom;
 use rocket::response::status;
 use rocket_contrib::json::Json;
 use serde::Deserialize;
@@ -44,14 +44,14 @@ pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiRe
                     Err(error) => error!("{}", error.to_string()),
                 }
             }
+
             let chosen_shows: Vec<String> = library
                 .shows
-                .choose_multiple(&mut rand::thread_rng(), 3)
-                .cloned()
-                .map(|show| show.path)
-                .collect();
+                .into_iter()
+                .filter_map(|show| show.cover_image)
+                .choose_multiple(&mut rand::thread_rng(), 3);
 
-            montage::combine(chosen_shows, format!("./media/{}.jpeg", new_library_id));
+            montage::combine(chosen_shows, format!("./media/library_{}", new_library_id));
 
             new_library_id
         })
@@ -91,12 +91,11 @@ pub async fn update_library(id: i32, force: bool, conn: db::Conn) -> ApiResponse
 
         let chosen_shows: Vec<String> = library
             .shows
-            .choose_multiple(&mut rand::thread_rng(), 3)
-            .cloned()
-            .map(|show| show.path)
-            .collect();
+            .into_iter()
+            .filter_map(|show| show.cover_image)
+            .choose_multiple(&mut rand::thread_rng(), 3);
 
-        montage::combine(chosen_shows, format!("./media/{}.jpeg", db_lib.id));
+        montage::combine(chosen_shows, format!("./media/library_{}", db_lib.id));
     })
     .await;
 

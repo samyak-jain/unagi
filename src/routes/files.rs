@@ -77,3 +77,12 @@ pub async fn serve(id: Uuid) -> FileResponse {
 
     Ok(NamedFile::open(transcoding_path).await?)
 }
+
+#[rocket::get("/library/thumbnail/<id>")]
+pub async fn serve_thumbnail(id: i32) -> FileResponse {
+    Ok(NamedFile::open(PathBuf::from(format!(
+        "./media/library_{}/combined.png",
+        id
+    )))
+    .await?)
+}

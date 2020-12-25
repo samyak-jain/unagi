@@ -55,6 +55,7 @@ async fn main() {
                 hello,
                 routes::library::add_library,
                 routes::files::serve,
+                routes::files::serve_thumbnail,
                 routes::library::get,
                 routes::library::get_all,
                 routes::shows::get,

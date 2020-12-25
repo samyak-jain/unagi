@@ -4,8 +4,5 @@ use crate::{db, errors::ApiResponse};
 pub async fn get(id: i32, conn: db::Conn) -> ApiResponse {
     let shows = conn.run(move |c| db::shows::get(c, id)).await?;
 
-    Ok(json!({
-        "status": "success",
-        "shows": shows,
-    }))
+    Ok(json!(shows))
 }

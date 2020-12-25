@@ -4,6 +4,7 @@ use crate::{
     handlers::montage,
 };
 use rand::seq::SliceRandom;
+use rocket::response::status;
 use rocket_contrib::json::Json;
 use serde::Deserialize;
 use validator::Validate;
@@ -57,10 +58,7 @@ pub async fn add_library(new_library: Json<NewLibrary>, conn: db::Conn) -> ApiRe
         .await;
 
     if new_library_id == -1 {
-        Ok(json!({
-            "status": "failure",
-            "message": "library already exists",
-        }))
+        Err(status::NotFound("Couldn't find library"))?
     } else {
         Ok(json!({
             "status": "success",
@@ -108,11 +106,13 @@ pub async fn update_library(id: i32, force: bool, conn: db::Conn) -> ApiResponse
 }
 
 #[get("/library/<id>")]
-pub async fn fetch(id: i32, conn: db::Conn) -> ApiResponse {
+pub async fn get(id: i32, conn: db::Conn) -> ApiResponse {
     let library = conn.run(move |c| db::library::get(c, id)).await?;
 
-    Ok(json!({
-        "status": "success",
-        "library": library,
-    }))
+    Ok(json!(library))
+}
+
+#[get("/library")]
+pub async fn get_all(conn: db::Conn) -> ApiResponse {
+    Ok(json!(conn.run(|c| db::library::get_all(c)).await?))
 }

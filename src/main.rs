@@ -55,7 +55,10 @@ async fn main() {
                 hello,
                 routes::library::add_library,
                 routes::files::serve,
-                routes::library::fetch
+                routes::library::get,
+                routes::library::get_all,
+                routes::shows::get,
+                routes::episodes::get
             ],
         )
         .attach(db::Conn::fairing())

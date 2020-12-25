@@ -36,6 +36,12 @@ pub fn get(conn: &PgConnection, library_id: i32) -> Result<Library, diesel::resu
     library.find(library_id).get_result::<Library>(conn)
 }
 
+pub fn get_all(conn: &PgConnection) -> Result<Vec<Library>, diesel::result::Error> {
+    use self::library::dsl::*;
+
+    library.load::<Library>(conn)
+}
+
 pub fn exists(conn: &PgConnection, path: &str) -> Result<bool, diesel::result::Error> {
     use self::library::dsl::*;
     use crate::diesel::ExpressionMethods;

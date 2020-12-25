@@ -1,5 +1,5 @@
 [package]
-name = "capelin"
+name = "unagi"
 version = "0.1.0"
 license-file = "LICENSE"
 description = "A media library server written in Rust"

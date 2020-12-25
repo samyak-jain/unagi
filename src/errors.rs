@@ -6,7 +6,7 @@ use std::{
 };
 
 use config::{Config, ConfigError};
-use rocket::response::Responder;
+use rocket::response::{status, Responder};
 use rocket::{http::Status, response::NamedFile};
 use rocket_contrib::json::JsonValue;
 use shared_child::SharedChild;
@@ -16,6 +16,7 @@ pub enum ApiError {
     ConfigError(Option<ConfigError>),
     IOError(std::io::Error),
     TranscodingError(TranscodingError),
+    NotFoundError(status::NotFound<&'static str>),
     MutexError,
 }
 
@@ -43,6 +44,7 @@ impl Responder<'_, 'static> for ApiError {
             ApiError::IOError(error) => String::from(error.to_string()),
             ApiError::TranscodingError(error) => String::from(error.to_string()),
             ApiError::MutexError => String::from("Mutex was not able to lock properly"),
+            ApiError::NotFoundError(error) => String::from(error.0),
         };
 
         error!("{}", message);
@@ -93,6 +95,12 @@ impl From<std::io::Error> for ApiError {
 impl From<TranscodingError> for ApiError {
     fn from(error: TranscodingError) -> Self {
         ApiError::TranscodingError(error)
+    }
+}
+
+impl From<status::NotFound<&'static str>> for ApiError {
+    fn from(error: status::NotFound<&'static str>) -> Self {
+        ApiError::NotFoundError(error)
     }
 }
 

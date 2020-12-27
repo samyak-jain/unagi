@@ -10,7 +10,7 @@ use uuid::Uuid;
 #[table_name = "episodes"]
 #[changeset_options(treat_none_as_null = "true")]
 pub struct EpisodeNew {
-    name: Option<String>,
+    name: String,
     show_id: i32,
     episode_number: Option<i32>,
     thumbnail: Option<String>,
@@ -34,8 +34,8 @@ pub fn create(
         file_path: episode.path.clone(),
         episode_number: episode.number,
         locator_id: new_locator_id,
-        name: Some(episode.name.clone()),
-        thumbnail: None,
+        name: episode.name.clone(),
+        thumbnail: episode.thumbnail.clone(),
     };
 
     let result_id = if exists(conn, &episode.path)? {

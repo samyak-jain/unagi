@@ -9,7 +9,7 @@ use uuid::Uuid;
 pub struct Episode {
     pub id: i32,
     pub show_id: i32,
-    pub name: Option<String>,
+    pub name: String,
     pub thumbnail: Option<String>,
     pub file_path: String,
     pub locator_id: Uuid,

@@ -2,7 +2,7 @@ table! {
     episodes (id) {
         id -> Int4,
         show_id -> Int4,
-        name -> Nullable<Varchar>,
+        name -> Varchar,
         thumbnail -> Nullable<Varchar>,
         file_path -> Varchar,
         locator_id -> Uuid,

@@ -24,7 +24,7 @@ pub fn combine(paths: Vec<String>, dest_str: String) {
 
     let output = Command::new("/usr/bin/convert")
         .arg("(")
-        .args((0..3).map(|n| format!("./media/{}.png", n)))
+        .args((0..3).map(|n| format!("{}/{}.png", dest_str, n)))
         .args(&["-resize", "x660"])
         .arg("+append")
         .arg(")")

@@ -33,7 +33,7 @@ rand = "0.7.3"
 version = "0.5.0-dev"
 git = "https://github.com/SergioBenitez/Rocket"
 default-features = false
-features = ["json", "diesel_postgres_pool", "uuid"]
+features = ["json", "diesel_postgres_pool", "uuid", "serve"]
 
 [profile.dev]
 opt-level = 0

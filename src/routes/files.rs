@@ -5,7 +5,6 @@ use crate::{
 use shared_child::SharedChild;
 use std::{
     collections::HashMap,
-    fs,
     path::PathBuf,
     sync::{Arc, Mutex},
     thread::spawn,
@@ -20,7 +19,7 @@ lazy_static! {
     static ref PROCESS: Mutex<HashMap<String, Arc<SharedChild>>> = Mutex::new(HashMap::new());
 }
 
-#[rocket::post("/transcode/<id>")]
+#[rocket::get("/transcode/<id>")]
 pub async fn transcode(id: Uuid, conn: db::Conn) -> ApiResponse {
     let episode_result = conn
         .run(move |c| db::episodes::fetch(c, id.into_inner()))
@@ -30,7 +29,11 @@ pub async fn transcode(id: Uuid, conn: db::Conn) -> ApiResponse {
     let mut transcoding_path = PathBuf::from(SETTINGS.read()?.get_str("TRANSCODING")?);
     transcoding_path.push(pid.clone());
 
-    fs::create_dir(transcoding_path.clone())?;
+    if transcoding_path.as_path().exists() {
+        return Ok(json!({
+            "status": "success"
+        }));
+    }
 
     let is_hw_enabled = SETTINGS.read()?.get_bool("HW_ACCEL")?;
 
@@ -67,15 +70,6 @@ pub async fn stop_transcoding(id: Uuid) -> ApiResponse {
             "reason": "trancoding process not found",
         })),
     }
-}
-
-#[rocket::get("/file/<id>")]
-pub async fn serve(id: Uuid) -> FileResponse {
-    let pid = id.into_inner().to_string();
-    let mut transcoding_path = PathBuf::from(SETTINGS.read()?.get_str("TRANSCODING")?);
-    transcoding_path.push(pid.clone());
-
-    Ok(NamedFile::open(transcoding_path).await?)
 }
 
 #[rocket::get("/library/thumbnail/<id>")]

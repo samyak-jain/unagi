@@ -25,7 +25,8 @@ extern crate static_http_cache;
 
 use config::Config;
 use dotenv::dotenv;
-use std::sync::RwLock;
+use rocket_contrib::serve::StaticFiles;
+use std::{path::PathBuf, sync::RwLock};
 
 lazy_static! {
     static ref SETTINGS: RwLock<Config> = RwLock::new(Config::default());
@@ -47,6 +48,19 @@ fn hello(age: u8) -> String {
 #[rocket::main]
 async fn main() {
     dotenv().ok();
+    SETTINGS
+        .write()
+        .unwrap()
+        .set_default("TRANSCODING", "./transcodes")
+        .unwrap();
+
+    SETTINGS
+        .write()
+        .unwrap()
+        .set_default("HW_ACCEL", true)
+        .unwrap();
+
+    let transcoding_path = PathBuf::from(SETTINGS.read().unwrap().get_str("TRANSCODING").unwrap());
 
     rocket::ignite()
         .mount(
@@ -54,14 +68,15 @@ async fn main() {
             routes![
                 hello,
                 routes::library::add_library,
-                routes::files::serve,
                 routes::files::serve_thumbnail,
+                routes::files::transcode,
                 routes::library::get,
                 routes::library::get_all,
                 routes::shows::get,
                 routes::episodes::get
             ],
         )
+        .mount("/file", StaticFiles::from(transcoding_path))
         .attach(db::Conn::fairing())
         .launch()
         .await

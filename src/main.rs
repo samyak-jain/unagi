@@ -26,7 +26,7 @@ extern crate static_http_cache;
 use config::Config;
 use dotenv::dotenv;
 use rocket_contrib::serve::StaticFiles;
-use std::{path::PathBuf, sync::RwLock};
+use std::{fs, path::PathBuf, sync::RwLock};
 
 lazy_static! {
     static ref SETTINGS: RwLock<Config> = RwLock::new(Config::default());
@@ -61,6 +61,7 @@ async fn main() {
         .unwrap();
 
     let transcoding_path = PathBuf::from(SETTINGS.read().unwrap().get_str("TRANSCODING").unwrap());
+    fs::create_dir_all(&transcoding_path).unwrap();
 
     rocket::ignite()
         .mount(

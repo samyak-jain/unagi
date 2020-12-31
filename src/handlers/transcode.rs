@@ -24,15 +24,15 @@ pub fn start_transcoding(
     destination_playlist.set_extension("m3u8");
 
     let mut ffmpeg = Command::new("/usr/bin/ffmpeg");
-    let command = match is_hw_enabled {
+    let should_enable_gpu = is_hw_enabled && check_gpu_availability()?;
+
+    let command = match should_enable_gpu {
         true => ffmpeg
             .args(&["-vsync", "0"])
             .args(&["-hwaccel", "cuvid"])
             .arg("-i"),
         false => ffmpeg.arg("-i"),
     };
-
-    let should_enable_gpu = is_hw_enabled && check_gpu_availability()?;
 
     let codec = if should_enable_gpu {
         "h264_nvenc"
@@ -41,7 +41,7 @@ pub fn start_transcoding(
     };
 
     let filter = if should_enable_gpu {
-        "[v:0]hwupload_cuda,split=2[vtemp001][vout002];[vtemp001]hwupload_cuda,scale_cuda=w=960:h=540,hwdownload[vout001]"
+        "[v:0]hwupload_cuda,split=2[vtemp001][vout002];[vtemp001]hwupload_cuda,scale_npp=w=960:h=540,hwdownload[vout001]"
     } else {
         "[v:0]split=2[vtemp001][vout002];[vtemp001]scale=w=960:h=540[vout001]"
     };

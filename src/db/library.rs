@@ -1,53 +1,58 @@
-use crate::schema::library;
-use diesel::RunQueryDsl;
-use rocket_contrib::databases::diesel::PgConnection;
+use rocket::State;
 
-use crate::models::library::Library;
+use crate::routes::library::Library;
 
-#[derive(Insertable)]
-#[table_name = "library"]
-struct LibraryNew {
-    name: String,
-    location: String,
+use super::Database;
+
+struct LibraryInsertResult {
+    id: i32,
 }
 
-pub fn create(
-    conn: &PgConnection,
-    name_string: String,
-    location_string: String,
-) -> Result<i32, diesel::result::Error> {
-    let new_library = &LibraryNew {
-        name: name_string,
-        location: location_string,
-    };
+pub async fn add(db: &State<Database>, library: &Library) -> Result<i32, sqlx::Error> {
+    // Check if library exists
+    if let Some(result) = sqlx::query_as!(
+        LibraryInsertResult,
+        "SELECT id FROM library WHERE location = $1",
+        library.location,
+    )
+    .fetch_optional(&**db)
+    .await?
+    {
+        return Ok(result.id);
+    }
 
-    let result_id = diesel::insert_into(library::table)
-        .values(new_library)
-        .get_result::<Library>(conn)?
-        .id;
+    // Insert library if it doesn't exist
+    let result = sqlx::query_as!(
+        LibraryInsertResult,
+        "INSERT INTO library(name, location) VALUES($1, $2) RETURNING id",
+        library.name,
+        library.location
+    )
+    .fetch_one(&**db)
+    .await?;
 
-    Ok(result_id)
+    Ok(result.id)
 }
 
-pub fn get(conn: &PgConnection, library_id: i32) -> Result<Library, diesel::result::Error> {
-    use self::library::dsl::*;
-    use crate::diesel::QueryDsl;
-
-    library.find(library_id).get_result::<Library>(conn)
-}
-
-pub fn get_all(conn: &PgConnection) -> Result<Vec<Library>, diesel::result::Error> {
-    use self::library::dsl::*;
-
-    library.load::<Library>(conn)
-}
-
-pub fn exists(conn: &PgConnection, path: &str) -> Result<bool, diesel::result::Error> {
-    use self::library::dsl::*;
-    use crate::diesel::ExpressionMethods;
-    use crate::diesel::QueryDsl;
-    use diesel::dsl::exists;
-    use diesel::select;
-
-    select(exists(library.filter(location.eq(path)))).get_result(conn)
-}
+// pub fn get(conn: &PgConnection, library_id: i32) -> Result<Library, diesel::result::Error> {
+//     use self::library::dsl::*;
+//     use crate::diesel::QueryDsl;
+//
+//     library.find(library_id).get_result::<Library>(conn)
+// }
+//
+// pub fn get_all(conn: &PgConnection) -> Result<Vec<Library>, diesel::result::Error> {
+//     use self::library::dsl::*;
+//
+//     library.load::<Library>(conn)
+// }
+//
+// pub fn exists(conn: &PgConnection, path: &str) -> Result<bool, diesel::result::Error> {
+//     use self::library::dsl::*;
+//     use crate::diesel::ExpressionMethods;
+//     use crate::diesel::QueryDsl;
+//     use diesel::dsl::exists;
+//     use diesel::select;
+//
+//     select(exists(library.filter(location.eq(path)))).get_result(conn)
+// }

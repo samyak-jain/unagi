@@ -1,6 +1,2 @@
 .env
-Session.vim
 /target
-cache/
-media/
-transcodes/

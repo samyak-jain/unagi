@@ -10,8 +10,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = { git = "https://github.com/SergioBenitez/Rocket", version = "0.5.0-dev" }
+rocket = { version = "0.5.0-rc.1", features = ["json"] }
 diesel = { version = "1.4.5", features = ["postgres", "uuidv07"] }
+sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "postgres", "macros", "migrate", "uuid"] }
 dotenv = "0.15.0"
 validator = { version = "0.12", features = ["derive"] }
 serde = "1.0.117"
@@ -21,19 +22,20 @@ simple-error = "0.2.2"
 anitomy = "0.1.2"
 uuid = { version = "0.8.1", features = ["v4", "serde"] }
 graphql_client = "0.9.0"
-lazy_static = "1.4.0"
 config = "0.10.1"
 regex = "1.4.2"
 shared_child = "0.3.4"
 quick-xml = { version = "0.20.0", features = [ "serialize" ] }
 static-http-cache = { version = "0.3.0", git = "https://github.com/Matthias-Fauconneau/static-http-cache" }
 rand = "0.7.3"
+dotenv_codegen = "0.15.0"
+anyhow = "1.0.41"
+dirs = "3.0.2"
 
-[dependencies.rocket_contrib]
-version = "0.5.0-dev"
-git = "https://github.com/SergioBenitez/Rocket"
+[dependencies.rocket_sync_db_pools]
+version = "0.1.0-rc.1"
 default-features = false
-features = ["json", "diesel_postgres_pool", "uuid", "serve"]
+features = ["postgres_pool"]
 
 [profile.dev]
 opt-level = 0

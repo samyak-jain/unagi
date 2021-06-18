@@ -1,7 +1,5 @@
 use std::{fs, io, path::PathBuf, process::Command};
 
-use crate::errors::TranscodingError;
-
 fn check_gpu_availability() -> Result<bool, io::Error> {
     let gpu_checker = Command::new("/usr/bin/nvidia-smi").output();
     Ok(gpu_checker?.status.success())
@@ -11,7 +9,7 @@ pub fn start_transcoding(
     source_path: PathBuf,
     destination_path: PathBuf,
     is_hw_enabled: bool,
-) -> Result<Command, TranscodingError> {
+) -> anyhow::Result<Command> {
     fs::create_dir_all(destination_path.clone())?;
 
     let mut destination_files = destination_path.clone();

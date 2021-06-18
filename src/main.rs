@@ -2,43 +2,22 @@
 extern crate rocket;
 
 #[macro_use]
-extern crate rocket_contrib;
+extern crate dotenv_codegen;
 
 #[macro_use]
-extern crate diesel;
+extern crate anyhow;
 
-#[macro_use]
-extern crate simple_error;
-
-extern crate graphql_client;
-
-#[macro_use]
-extern crate lazy_static;
-
-extern crate anitomy;
-extern crate config;
-extern crate dotenv;
-extern crate quick_xml;
-extern crate reqwest;
-extern crate serde;
-extern crate static_http_cache;
-
-use config::Config;
 use dotenv::dotenv;
-use rocket_contrib::serve::StaticFiles;
-use std::{fs, path::PathBuf, sync::RwLock};
-
-lazy_static! {
-    static ref SETTINGS: RwLock<Config> = RwLock::new(Config::default());
-}
+use rocket::fs::FileServer;
+use std::{fs, path::PathBuf};
 
 mod api;
 mod db;
-mod errors;
+// mod errors;
 mod handlers;
-mod models;
+// mod models;
 mod routes;
-mod schema;
+// mod schema;
 
 #[get("/hello/<age>")]
 fn hello(age: u8) -> String {
@@ -48,37 +27,32 @@ fn hello(age: u8) -> String {
 #[rocket::main]
 async fn main() {
     dotenv().ok();
-    SETTINGS
-        .write()
-        .unwrap()
-        .set_default("TRANSCODING", "./transcodes")
-        .unwrap();
 
-    SETTINGS
-        .write()
-        .unwrap()
-        .set_default("HW_ACCEL", true)
-        .unwrap();
-
-    let transcoding_path = PathBuf::from(SETTINGS.read().unwrap().get_str("TRANSCODING").unwrap());
+    // Check if the transcoding directory is created
+    let transcoding_path = match std::env::var("TRANSCODING") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => dirs::data_dir().expect(
+            "No default data directory in the OS. Please set the TRANSCODING environment variable",
+        ),
+    };
     fs::create_dir_all(&transcoding_path).unwrap();
 
-    rocket::ignite()
+    rocket::build()
         .mount(
             "/",
             routes![
                 hello,
-                routes::library::add_library,
-                routes::files::serve_thumbnail,
-                routes::files::transcode,
-                routes::library::get,
-                routes::library::get_all,
-                routes::shows::get,
-                routes::episodes::get
+                // routes::library::add_library,
+                // routes::files::serve_thumbnail,
+                // routes::files::transcode,
+                // routes::library::get,
+                // routes::library::get_all,
+                // routes::shows::get,
+                // routes::episodes::get
             ],
         )
-        .mount("/file", StaticFiles::from(transcoding_path))
-        .attach(db::Conn::fairing())
+        .mount("/file", FileServer::from(transcoding_path))
+        .attach(db::stage_database())
         .launch()
         .await
         .unwrap();

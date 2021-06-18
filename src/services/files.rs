@@ -30,30 +30,39 @@ pub struct Show {
 pub struct Library {
     pub path: String,
     pub thumbnail: Option<String>,
-    path_raw: PathBuf,
     pub shows: Vec<Show>,
     pub lib_id: i32,
 }
 
 impl Library {
-    pub fn new(path_string: String, library_id: i32) -> Library {
-        Library {
-            path: String::new(),
-            path_raw: PathBuf::from(path_string),
-            shows: vec![],
-            lib_id: library_id,
-            thumbnail: None,
+    pub fn read(path: String, id: i32) -> anyhow::Result<Library> {
+        let path_buffer = PathBuf::from(path);
+        if !path_buffer.is_dir() {
+            return Err(anyhow!("Given path is not a directory"));
         }
+
+        let shows = fs::read_dir(path_buffer)?
+            .map(|p| match p {
+                Ok(directory) => Library::read_episodes(directory.path(), 1, false),
+                Err(_) => Err(anyhow!("IO Error")),
+            })
+            .filter_map(Result::ok)
+            .flatten()
+            .collect();
+
+        Ok(Library {
+            lib_id: id,
+            path,
+            thumbnail: None,
+            shows,
+        })
     }
 
-    fn read_episodes(
-        path: PathBuf,
-        season: i64,
-        parent: bool,
-    ) -> Result<Vec<Show>, Box<dyn std::error::Error>> {
+    fn read_episodes(path: PathBuf, season: i64, parent: bool) -> anyhow::Result<Vec<Show>> {
         let mut anitomy = Anitomy::new();
         let mut shows: Vec<Show> = Vec::new();
         let mut episodes: Vec<Episode> = Vec::new();
+
         for entry in fs::read_dir(&path)? {
             let entry = entry?;
             let path = entry.path();
@@ -62,8 +71,7 @@ impl Library {
             let fname = entry
                 .file_name()
                 .into_string()
-                .ok()
-                .ok_or("Cannot get fname")?;
+                .map_err(|err| anyhow!("Cannot get filename"))?;
             if metadata.is_file() {
                 if EXCLUDE_FILENAMES.contains(&&fname[..]) {
                     continue;
@@ -137,19 +145,5 @@ impl Library {
         }
 
         Ok(shows)
-    }
-
-    pub fn read_library(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if self.path_raw.is_dir() {
-            self.shows = fs::read_dir(&self.path_raw)?
-                .map(|p| Library::read_episodes(p.unwrap().path(), 1, false))
-                .filter_map(Result::ok)
-                .flatten()
-                .collect();
-
-            Ok(())
-        } else {
-            bail!("Supplied Path is not a directory")
-        }
     }
 }

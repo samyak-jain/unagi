@@ -29,14 +29,14 @@ pub async fn get_db_handle() -> anyhow::Result<Database> {
         return Err(anyhow!("Failed to run database migrations"));
     };
 
-    return Ok(pool)
+    return Ok(pool);
 }
 
 async fn init_db(rocket: Rocket<Build>) -> fairing::Result {
-    let handle = get_db_handle().await; 
+    let handle = get_db_handle().await;
     match handle {
         Ok(pool) => Ok(rocket.manage(pool)),
-        Err(_) => Err(rocket)
+        Err(_) => Err(rocket),
     }
 }
 

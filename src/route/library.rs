@@ -28,9 +28,11 @@ pub struct Library {
 pub async fn add_library(db: &State<Database>, library: Json<Library>) -> ApiResult<()> {
     let inner_library = library.into_inner();
     let library_id = library::add(db, &inner_library).await?;
-    let library_directory =
-        crate::services::files::Library::read(inner_library.location, library_id);
-    let anime_list = generate_anime_list().await.unwrap();
+    let library_directory = crate::services::files::LibraryDirectory::create_library(
+        inner_library.location,
+        library_id,
+    );
+    let anime_list = generate_anime_list(db.inner()).await.unwrap();
     Ok(())
     /*
     let new_library = new_library.into_inner();

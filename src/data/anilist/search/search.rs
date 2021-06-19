@@ -1,7 +1,7 @@
 use graphql_client::*;
 use std::error::Error;
 
-use crate::services::files::Show;
+use crate::services::files::ShowDetails;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -11,7 +11,7 @@ use crate::services::files::Show;
 )]
 struct GetAnime;
 
-impl Show {
+impl ShowDetails {
     pub fn search_anime(&self) -> anyhow::Result<i64> {
         let request_body = GetAnime::build_query(get_anime::Variables {
             name: self.name.clone(),

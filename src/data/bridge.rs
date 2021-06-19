@@ -5,7 +5,7 @@ use rocket::futures::TryStreamExt;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
-use crate::db::{Database, get_db_handle};
+use crate::db::{get_db_handle, Database};
 use std::convert::TryFrom;
 
 use super::utils::request_and_cache;
@@ -43,7 +43,8 @@ async fn convert_anime_provider(
     if anime_response.status().is_success() {
         let body = anime_response.text().await?;
         let mapping: Value = serde_json::from_str(&body)?;
-        i32::try_from(mapping[dest.to_string()].as_i64().ok_or(not_found_error)?).map_err(|_| anyhow!("Overflow Error"))
+        i32::try_from(mapping[dest.to_string()].as_i64().ok_or(not_found_error)?)
+            .map_err(|_| anyhow!("Overflow Error"))
     } else {
         Err(not_found_error)
     }
@@ -91,12 +92,20 @@ where
     }
 }
 
-pub async fn generate_anime_list() -> anyhow::Result<()> {
+// TODO: Have these run at the start of the server instead of lazy loading it
+// Gets the list of anime and stores it in a database if the cache has not expired
+pub async fn generate_anime_list(database: &Database) -> anyhow::Result<()> {
+    // If this returns a None, this means that the cache has not expired
+    // Which means, we will not have to store anything new in the database
     let anime_list_string =
         request_and_cache("https://github.com/ScudLee/anime-lists/raw/master/anime-list-full.xml")
             .await?;
+
     if let Some(anime_list_unwrapped) = anime_list_string {
+        // This means the cache has expired
+        // We have to update the database
         let anime_list: AnimeList = quick_xml::de::from_str(&anime_list_unwrapped)?;
+        store_in_database(anime_list.anime, database).await?;
     }
     Ok(())
 }
@@ -127,9 +136,27 @@ async fn anidb_to_tvdb(anidb_id: i32, database: &Database) -> anyhow::Result<i32
 
 // Function gets the season number and returns the AniDB ID
 async fn season_to_anidb(tvdb: i32, season: i32, database: &Database) -> anyhow::Result<i32> {
-    let anime_list: Vec<AnimeMap> = sqlx::query_as!(AnimeMap, "SELECT anidb as anidbid, tvdb as tvdbid, season as defaulttvdbseason, episode_offset as episodeoffset FROM anime WHERE tvdb = $1 AND (season = $2 OR season = NULL) ORDER BY episode_offset", tvdb, season).fetch(database).try_collect::<Vec<_>>().await?;
+    // Get the list of all anime that are:
+    // 1. Of a give season
+    // 2. Don't have a season. In which case, we will use the episode offset
+    let anime_list: Vec<AnimeMap> = sqlx::query_as!(
+        AnimeMap,
+        "SELECT anidb as anidbid, tvdb as tvdbid, season as 
+                        defaulttvdbseason, episode_offset as episodeoffset 
+                        FROM anime WHERE tvdb = $1 AND (season = $2 OR season = NULL) 
+                        ORDER BY episode_offset",
+        tvdb,
+        season
+    )
+    .fetch(database)
+    .try_collect::<Vec<_>>()
+    .await?;
 
+    // Use the season number as index
     let anime_list_index = season as usize;
+
+    // If the season number provided is greater than the list of all seasons we know,
+    // we will just take the first season
     if anime_list_index >= anime_list.len() {
         anime_list
             .first()
@@ -140,10 +167,17 @@ async fn season_to_anidb(tvdb: i32, season: i32, database: &Database) -> anyhow:
     }
 }
 
+// Fetch the anilist ID for a particular season
 pub async fn get_season(anilist_id: i32, season_number: i32) -> anyhow::Result<i32> {
-    let anidbid = convert_anime_provider(AnimeProvider::Anilist, AnimeProvider::AniDB, anilist_id).await?;
+    let anidbid =
+        convert_anime_provider(AnimeProvider::Anilist, AnimeProvider::AniDB, anilist_id).await?;
     let database = get_db_handle().await?;
     let tvdbid = anidb_to_tvdb(anidbid, &database).await?;
     let correct_anidbid = season_to_anidb(season_number, tvdbid, &database).await?;
-    convert_anime_provider(AnimeProvider::AniDB, AnimeProvider::Anilist, correct_anidbid).await
+    convert_anime_provider(
+        AnimeProvider::AniDB,
+        AnimeProvider::Anilist,
+        correct_anidbid,
+    )
+    .await
 }

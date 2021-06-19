@@ -2,7 +2,7 @@ use graphql_client::*;
 use regex::Regex;
 use std::error::Error;
 
-use crate::services::files::Show;
+use crate::services::files::ShowDetails;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -12,7 +12,7 @@ use crate::services::files::Show;
 )]
 struct GetAnime;
 
-impl Show {
+impl ShowDetails {
     fn update_episode(
         &mut self,
         number: String,

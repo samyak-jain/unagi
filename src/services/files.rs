@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use anitomy::{Anitomy, ElementCategory};
 use regex::Regex;
@@ -7,148 +7,262 @@ const SUPPORTED_FILETYPES: &[&str] = &["mkv", "mp4"];
 const EXCLUDE_FILENAMES: &[&str] = &["NCOP", "NCED"];
 
 #[derive(Clone, Debug)]
-pub struct Episode {
+pub struct EpisodeDetails {
     pub name: String,
-    pub number: Option<i32>,
-    pub path_raw: PathBuf,
+    pub number: i32,
     pub path: String,
     pub thumbnail: Option<String>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Show {
+pub struct ShowDetails {
     pub name: String,
     pub path: String,
     pub description: Option<String>,
     pub banner_image: Option<String>,
     pub cover_image: Option<String>,
-    pub season: i64,
-    path_raw: PathBuf,
-    pub episodes: Vec<Episode>,
+    pub season: i32,
+    pub episodes: Vec<EpisodeDetails>,
 }
 
-pub struct Library {
+pub struct LibraryDirectory {
     pub path: String,
     pub thumbnail: Option<String>,
-    pub shows: Vec<Show>,
+    pub shows: Vec<ShowDetails>,
     pub lib_id: i32,
 }
 
-impl Library {
-    pub fn read(path: String, id: i32) -> anyhow::Result<Library> {
+impl LibraryDirectory {
+    /// Recurse into a given directory and add all shows
+    pub fn create_library(path: String, id: i32) -> anyhow::Result<LibraryDirectory> {
         let path_buffer = PathBuf::from(&path);
         if !path_buffer.is_dir() {
             return Err(anyhow!("Given path is not a directory"));
         }
 
-        let shows = fs::read_dir(path_buffer)?
-            .map(|p| match p {
-                Ok(directory) => Library::read_episodes(directory.path(), 1, false),
-                Err(_) => Err(anyhow!("IO Error")),
-            })
-            .filter_map(Result::ok)
-            .flatten()
-            .collect();
-
-        Ok(Library {
+        Ok(LibraryDirectory {
             lib_id: id,
             path,
             thumbnail: None,
-            shows,
+            shows: Self::read_shows(path_buffer)?,
         })
     }
 
-    fn read_episodes(path: PathBuf, season: i64, parent: bool) -> anyhow::Result<Vec<Show>> {
-        let mut anitomy = Anitomy::new();
-        let mut shows: Vec<Show> = Vec::new();
-        let mut episodes: Vec<Episode> = Vec::new();
+    /// Read episodes reads all the episode files in a directory and sturctures it
+    /// Required Parameters:
+    /// path: A PathBuf that is the directory of the show we are reading
+    /// season: The season number that we are assuming for the show
+    /// parent: This is a flag to determine if this function is called as a result of a recursion
+    /// or not
+    ///
+    /// The directory structure that we are assuming is for example:
+    /// |- LibraryName
+    /// |  |- Pyscho Pass
+    /// |  |  |- episode 01.mkv
+    /// |  |  |- episode 02.mkv
+    ///
+    /// |  |- Attack On Titan
+    /// |  |  |- Season 01
+    /// |  |  |  |- episode 01.mkv
+    /// |  |  |  |- episode 02.mkv
+    /// |  |  |- Season 02
+    /// |  |  |  |- episode 01.mkv
+    /// |  |  |  |- episode 02.mkv
+    ///
+    /// As shown above, there are two types of representing shows.
+    /// 1. With just one directory with the name of the show. In that case, we assume
+    /// we are talking about season 1
+    /// 2. The name of the directory is the name of the show. But, we have multiple
+    /// sub directories name Season 01, Season 02, etc... We use this to determine the season
+    /// number
+    ///
+    /// For episode names, the above are just illustrative. We get the episode name by using
+    /// anitomy to parse the filename and the episode show not have the above scheme. The episode
+    /// names can be left as is.
+    ///
+    /// TODO: Parallelize this using Rayon
+    fn read_shows(library_path: PathBuf) -> anyhow::Result<Vec<ShowDetails>> {
+        // Iterate through all the children of the path. This is fine since we want to
+        // iterate through all the children anyway. So there is no benefit lazy loading.
+        // We can use this length and then make the entire allocation for the vector at once
+        let dir_entry_iterator = fs::read_dir(&library_path)?.collect::<Vec<_>>();
+        let mut show_list: Vec<ShowDetails> = Vec::with_capacity(dir_entry_iterator.len());
 
-        for entry in fs::read_dir(&path)? {
-            let entry = entry?;
-            let path = entry.path();
-            let metadata = entry.metadata()?;
-            let pattern = Regex::new(r".*(?i:season)\s*(\d+).*")?;
-            let fname = entry
-                .file_name()
-                .into_string()
-                .map_err(|err| anyhow!("Cannot get filename"))?;
-            if metadata.is_file() {
-                if EXCLUDE_FILENAMES.contains(&&fname[..]) {
-                    continue;
-                }
-                if let Some(extension) = path.extension().and_then(OsStr::to_str) {
-                    if SUPPORTED_FILETYPES.contains(&extension) {
-                        let elements = match anitomy.parse(fname.clone()) {
-                            Ok(ele) => ele,
-                            Err(ele) => ele,
-                        };
-                        let an_name = String::from(
-                            elements
-                                .get(ElementCategory::EpisodeTitle)
-                                .unwrap_or(&fname),
-                        );
-                        let an_number = elements
-                            .get(ElementCategory::EpisodeNumber)
-                            .map(|e| String::from(e));
+        for entry in dir_entry_iterator {
+            let show_file = entry?;
 
-                        episodes.push(Episode {
-                            name: an_name,
-                            number: an_number.map(|num| num.parse()).transpose()?,
-                            path_raw: entry.path(),
-                            thumbnail: None,
-                            path: String::from(
-                                path.to_str()
-                                    .ok_or(anyhow!("Could not convert path to string"))?,
-                            ),
-                        });
+            // If the library directory contains a file, we ignore it since it isn't useful to us
+            if show_file.file_type()?.is_file() {
+                continue;
+            }
+
+            // Get the name of the show
+            let show_name = show_file.file_name().to_string_lossy();
+
+            // Let's assume at first that only the top level show directory exists
+            // Meaning we don't have the Season 01, Season 02 etc... layout
+            let do_seasons_exist = false;
+
+            for sub_entry in fs::read_dir(&show_file.path())? {
+                let sub_path = sub_entry?;
+
+                // If we find a directory inside the show directory, we need to recurse into it
+                // for the episodes
+                if sub_path.path().is_dir() {
+                    if let Some(show) =
+                        Self::create_show(sub_path.path(), Some(show_name.to_string()))?
+                    {
+                        show_list.push(show);
+
+                        // If we are setting this flag to true because if a child directory
+                        // has a show then it means that the parent directory will not have
+                        // any episodes on it own. Only other child directories of the parent
+                        // will have the episodes
+                        //
+                        // Notice that the flag does not get set when the create_show method
+                        // returns None. This is since None is representing an error state where
+                        // we were unable to correctly parse the directory name. This error
+                        // however, should not be propogated like the others. We should just ignore
+                        // it.
+                        do_seasons_exist = true;
                     }
                 }
-            } else if metadata.is_dir() && pattern.is_match(&fname) {
-                let cap = pattern
-                    .captures(&fname)
-                    .ok_or(anyhow!("Could not get season number"))?;
-                let season_number = String::from(&cap[1]).parse::<i64>();
-                if season_number.is_err() {
-                    bail!("parse error");
-                } else {
-                    shows.extend(Library::read_episodes(
-                        entry.path(),
-                        season_number.unwrap(),
-                        true,
-                    )?);
+            }
+
+            // If the flag is set to false, we were not able to find any shows in the sub
+            // directory. This mean that the top level directory should contain the show.
+            if !do_seasons_exist {
+                if let Some(show) = Self::create_show(show_file.path(), None)? {
+                    show_list.push(show);
                 }
             }
         }
 
-        let show_name_path = if parent {
-            path.parent()
-                .ok_or(anyhow!("Could not get parent of path"))?
+        Ok(show_list)
+    }
+
+    // TODO: Better IO Error handling. Give feeback if there's an permission or interrupt error
+    // TODO: Maybe think of better semantics than returning Result<Option>?
+    //
+    // Currently we are using Result for a catch all for any kind of errors. Whether it is IO or
+    // Regex errors.
+    //
+    // The Option is used for the specific case when we find a directory but it is not formatted
+    // correctly in the Season + Number format. Example: Season 01, Season 02, etc...
+    //
+    // Ideally there should be a better way to express this.
+    fn create_show(path: PathBuf, parent: Option<String>) -> anyhow::Result<Option<ShowDetails>> {
+        let directory_name = path
+            .file_name()
+            .ok_or(anyhow!("Directory does not have a name"))?
+            .to_string_lossy()
+            .to_string();
+
+        let (season_number, show_name) = if let Some(parent_name) = parent {
+            // This scenario, we are getting the parent name from the function caller.
+            // The parent name is the directory that actually contains the name of the show
+            //
+            // This name of this directory contains which season the show is in.
+            // For Example:
+            // Season 01, Season 02, etc...
+
+            // Regex to capture the season number from directory's name
+            let pattern = Regex::new(r".*(?i:season)\s*(\d+).*")?;
+
+            // If we are unable to match the pattern, we are returning an error
+            let cap = pattern.captures(&directory_name);
+
+            if let Some(capture) = cap {
+                (String::from(&capture[1]).parse::<i32>()?, parent_name)
+            } else {
+                return Ok(None);
+            }
         } else {
-            path.as_path()
+            (1, directory_name)
         };
 
-        if shows.is_empty() {
-            shows.push(Show {
-                name: String::from(
-                    show_name_path
-                        .file_name()
-                        .ok_or(anyhow!("Could not get show name"))?
-                        .to_str()
-                        .ok_or(anyhow!("Could not convert show name to str"))?,
-                ),
-                path: String::from(
-                    path.to_str()
-                        .ok_or(anyhow!("Could not convert path to string"))?,
-                ),
-                description: None,
-                banner_image: None,
-                cover_image: None,
-                season,
-                episodes,
-                path_raw: path,
-            });
+        let mut anitomy = Anitomy::new();
+
+        // Iterate through all the children of the path. This is fine since we want to
+        // iterate through all the children anyway. So there is no benefit lazy loading.
+        // We can use this length and then make the entire allocation for the vector at once
+        let dir_entry_iterator = fs::read_dir(&path)?.collect::<Vec<_>>();
+        let mut episode_list: Vec<EpisodeDetails> = Vec::with_capacity(dir_entry_iterator.len());
+
+        for (index, entry) in dir_entry_iterator.into_iter().enumerate() {
+            let episode_file = entry?;
+            let file_type = episode_file.file_type()?;
+
+            // If we are in a directory, we can ignore
+            if file_type.is_dir() {
+                continue;
+            }
+
+            // TODO: We are currently not handling symlinks
+
+            let file_name = episode_file.file_name().to_string_lossy();
+
+            // Exclude certain filename from being indexed
+            if EXCLUDE_FILENAMES
+                .iter()
+                .any(|exclude| file_name.contains(exclude))
+            {
+                continue;
+            }
+
+            let episode_path = episode_file.path();
+            let file_extension = episode_path.extension();
+
+            // If we are able to get the file extension, we can check with the list
+            // of file extensions we support.
+            // If we are not able to find a file extension, we will be lenient and let
+            // the program continue anyway
+            if let Some(extension) = file_extension {
+                let lossy_extension: &str = &extension.to_string_lossy();
+                if !SUPPORTED_FILETYPES.contains(&lossy_extension) {
+                    continue;
+                }
+            }
+
+            // Use anitomy to parse the file name of the episode
+            // Anitomy returns elements whether it succeeds or fails
+            // When it succeeds, it is able to get all the elements,
+            // but when it fails, it still returns the elements it was able to parse
+            // We make use of whatever elements we get
+            let anitomy_elements = anitomy.parse(file_name).map_or_else(|ele| ele, |ele| ele);
+
+            // Try getting the Episode number and title
+            let try_episode_name = anitomy_elements.get(ElementCategory::EpisodeTitle);
+            let try_episode_number = anitomy_elements
+                .get(ElementCategory::EpisodeNumber)
+                .and_then(|number_string| number_string.parse::<i32>().ok());
+
+            // If we are not able to use the episode name from anitomy,
+            // we fallback to using the file name as the episode name.
+            //
+            // If we are unable to parse the episode number using anitomy,
+            // we fallback to using the index of the loop.
+            //
+            // TODO: Figure out a better way to get a fallback for the episode number.
+            //
+            // If we are not able to figure out the episode name, we are using an api
+            // to fetch episode details. However, this requires the episode number to be accurate.
+            episode_list.push(EpisodeDetails {
+                name: try_episode_name.unwrap_or(&file_name).to_string(),
+                number: try_episode_number.unwrap_or(index as i32),
+                path: episode_path.to_string_lossy().to_string(),
+                thumbnail: None,
+            })
         }
 
-        Ok(shows)
+        Ok(Some(ShowDetails {
+            name: show_name,
+            path: path.to_string_lossy().to_string(),
+            description: None,
+            banner_image: None,
+            cover_image: None,
+            season: season_number,
+            episodes: episode_list,
+        }))
     }
 }

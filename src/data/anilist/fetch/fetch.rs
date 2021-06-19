@@ -2,12 +2,12 @@ use graphql_client::*;
 use regex::Regex;
 use std::error::Error;
 
-use crate::handlers::files::Show;
+use crate::services::files::Show;
 
 #[derive(GraphQLQuery)]
 #[graphql(
-    schema_path = "src/api/anilist/schema.graphql",
-    query_path = "src/api/anilist/fetch/query.graphql",
+    schema_path = "src/data/anilist/schema.graphql",
+    query_path = "src/data/anilist/fetch/query.graphql",
     response_derives = "Debug"
 )]
 struct GetAnime;

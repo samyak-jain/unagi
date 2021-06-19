@@ -1,6 +1,6 @@
 use rocket::State;
 
-use crate::routes::library::Library;
+use crate::route::library::Library;
 
 use super::Database;
 

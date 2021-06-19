@@ -31,6 +31,7 @@ rand = "0.7.3"
 dotenv_codegen = "0.15.0"
 anyhow = "1.0.41"
 dirs = "3.0.2"
+kv = "0.22.0"
 
 [dependencies.rocket_sync_db_pools]
 version = "0.1.0-rc.1"

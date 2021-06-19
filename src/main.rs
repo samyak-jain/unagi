@@ -11,13 +11,11 @@ use dotenv::dotenv;
 use rocket::fs::FileServer;
 use std::{fs, path::PathBuf};
 
-mod api;
+mod data;
 mod db;
-// mod errors;
-mod handlers;
+mod services;
 // mod models;
-mod routes;
-// mod schema;
+mod route;
 
 #[get("/hello/<age>")]
 fn hello(age: u8) -> String {

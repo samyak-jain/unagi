@@ -36,7 +36,7 @@ pub struct Library {
 
 impl Library {
     pub fn read(path: String, id: i32) -> anyhow::Result<Library> {
-        let path_buffer = PathBuf::from(path);
+        let path_buffer = PathBuf::from(&path);
         if !path_buffer.is_dir() {
             return Err(anyhow!("Given path is not a directory"));
         }
@@ -97,7 +97,8 @@ impl Library {
                             path_raw: entry.path(),
                             thumbnail: None,
                             path: String::from(
-                                path.to_str().ok_or("Could not convert path to string")?,
+                                path.to_str()
+                                    .ok_or(anyhow!("Could not convert path to string"))?,
                             ),
                         });
                     }
@@ -105,7 +106,7 @@ impl Library {
             } else if metadata.is_dir() && pattern.is_match(&fname) {
                 let cap = pattern
                     .captures(&fname)
-                    .ok_or("Could not get season number")?;
+                    .ok_or(anyhow!("Could not get season number"))?;
                 let season_number = String::from(&cap[1]).parse::<i64>();
                 if season_number.is_err() {
                     bail!("parse error");
@@ -120,7 +121,8 @@ impl Library {
         }
 
         let show_name_path = if parent {
-            path.parent().ok_or("Could not get parent of path")?
+            path.parent()
+                .ok_or(anyhow!("Could not get parent of path"))?
         } else {
             path.as_path()
         };
@@ -130,11 +132,14 @@ impl Library {
                 name: String::from(
                     show_name_path
                         .file_name()
-                        .ok_or("Could not get show name")?
+                        .ok_or(anyhow!("Could not get show name"))?
                         .to_str()
-                        .ok_or("Could not convert show name to str")?,
+                        .ok_or(anyhow!("Could not convert show name to str"))?,
                 ),
-                path: String::from(path.to_str().ok_or("Could not convert path to string")?),
+                path: String::from(
+                    path.to_str()
+                        .ok_or(anyhow!("Could not convert path to string"))?,
+                ),
                 description: None,
                 banner_image: None,
                 cover_image: None,

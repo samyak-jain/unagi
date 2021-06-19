@@ -1600,7 +1600,8 @@ type User {
   updatedAt: Int
 
   # The user's statistics
-  stats: UserStats @deprecated(reason: "Deprecated. Replaced with statistics field.")
+  stats: UserStats
+    @deprecated(reason: "Deprecated. Replaced with statistics field.")
 }
 
 # A user's avatars
@@ -1759,7 +1760,10 @@ type MediaListTypeOptions {
   splitCompletedSectionByFormat: Boolean
 
   # The list theme options
-  theme: Json @deprecated(reason: "This field has not yet been fully implemented and may change without warning")
+  theme: Json
+    @deprecated(
+      reason: "This field has not yet been fully implemented and may change without warning"
+    )
 
   # The names of the user's custom lists
   customLists: [String]
@@ -3065,7 +3069,8 @@ enum RecommendationRating {
 type MediaStats {
   scoreDistribution: [ScoreDistribution]
   statusDistribution: [StatusDistribution]
-  airingProgression: [AiringProgression] @deprecated(reason: "Replaced by MediaTrends")
+  airingProgression: [AiringProgression]
+    @deprecated(reason: "Replaced by MediaTrends")
 }
 
 # A user's list score distribution.
@@ -3156,7 +3161,10 @@ type UserStatistics {
   statuses(limit: Int, sort: [UserStatisticsSort]): [UserStatusStatistic]
   scores(limit: Int, sort: [UserStatisticsSort]): [UserScoreStatistic]
   lengths(limit: Int, sort: [UserStatisticsSort]): [UserLengthStatistic]
-  releaseYears(limit: Int, sort: [UserStatisticsSort]): [UserReleaseYearStatistic]
+  releaseYears(
+    limit: Int
+    sort: [UserStatisticsSort]
+  ): [UserReleaseYearStatistic]
   startYears(limit: Int, sort: [UserStatisticsSort]): [UserStartYearStatistic]
   genres(limit: Int, sort: [UserStatisticsSort]): [UserGenreStatistic]
   tags(limit: Int, sort: [UserStatisticsSort]): [UserTagStatistic]
@@ -3432,7 +3440,21 @@ enum AiringSort {
 }
 
 # Notification union type
-union NotificationUnion = AiringNotification | FollowingNotification | ActivityMessageNotification | ActivityMentionNotification | ActivityReplyNotification | ActivityReplySubscribedNotification | ActivityLikeNotification | ActivityReplyLikeNotification | ThreadCommentMentionNotification | ThreadCommentReplyNotification | ThreadCommentSubscribedNotification | ThreadCommentLikeNotification | ThreadLikeNotification | RelatedMediaAdditionNotification
+union NotificationUnion =
+    AiringNotification
+  | FollowingNotification
+  | ActivityMessageNotification
+  | ActivityMentionNotification
+  | ActivityReplyNotification
+  | ActivityReplySubscribedNotification
+  | ActivityLikeNotification
+  | ActivityReplyLikeNotification
+  | ThreadCommentMentionNotification
+  | ThreadCommentReplyNotification
+  | ThreadCommentSubscribedNotification
+  | ThreadCommentLikeNotification
+  | ThreadLikeNotification
+  | RelatedMediaAdditionNotification
 
 # Notification for when an episode of anime airs
 type AiringNotification {
@@ -4200,10 +4222,12 @@ type MediaListCollection {
   hasNextChunk: Boolean
 
   # A map of media list entry arrays grouped by status
-  statusLists(asArray: Boolean): [[MediaList]] @deprecated(reason: "Not GraphQL spec compliant, use lists field instead.")
+  statusLists(asArray: Boolean): [[MediaList]]
+    @deprecated(reason: "Not GraphQL spec compliant, use lists field instead.")
 
   # A map of media list entry arrays grouped by custom lists
-  customLists(asArray: Boolean): [[MediaList]] @deprecated(reason: "Not GraphQL spec compliant, use lists field instead.")
+  customLists(asArray: Boolean): [[MediaList]]
+    @deprecated(reason: "Not GraphQL spec compliant, use lists field instead.")
 }
 
 # List group of anime or manga entries
@@ -4735,7 +4759,12 @@ type Mutation {
     # The id of the thread comment to delete
     id: Int
   ): Deleted
-  UpdateAniChartSettings(titleLanguage: String, outgoingLinkProvider: String, theme: String, sort: String): Json
+  UpdateAniChartSettings(
+    titleLanguage: String
+    outgoingLinkProvider: String
+    theme: String
+    sort: String
+  ): Json
   UpdateAniChartHighlights(highlights: [AniChartHighlightInput]): Json
 }
 
@@ -4788,7 +4817,13 @@ type Deleted {
 }
 
 # Likeable union type
-union LikeableUnion = ListActivity | TextActivity | MessageActivity | ActivityReply | Thread | ThreadComment
+union LikeableUnion =
+    ListActivity
+  | TextActivity
+  | MessageActivity
+  | ActivityReply
+  | Thread
+  | ThreadComment
 
 input AniChartHighlightInput {
   mediaId: Int

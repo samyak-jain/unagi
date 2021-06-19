@@ -1,5 +1,6 @@
 -- Add down migration script here
 
-DROP TABLE library
-DROP TABLE shows
-DROP TABLE episodes;
+DROP TABLE IF EXISTS library
+DROP TABLE IF EXISTS shows
+DROP TABLE IF EXISTS episodes;
+DROP TABLE IF EXISTS anime;

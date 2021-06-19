@@ -1,15 +1,15 @@
 -- Add up migration script here
 
 -- Create Library
-CREATE TABLE library (
-    id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS library (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY ,
     name VARCHAR NOT NULL,
     location VARCHAR NOT NULL
 );
 
 -- Create show for library
-CREATE TABLE shows (
-    id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS shows (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     library_id INTEGER NOT NULL,
     title VARCHAR NOT NULL,
     file_path VARCHAR NOT NULL,
@@ -23,8 +23,8 @@ CREATE TABLE shows (
 );
 
 -- Create episode for show
-CREATE TABLE episodes (
-    id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS episodes (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     show_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     thumbnail VARCHAR,
@@ -34,3 +34,13 @@ CREATE TABLE episodes (
 
     CONSTRAINT fk_show_id FOREIGN KEY (show_id) REFERENCES shows (id)
 );
+
+-- Create Anime List for caching the list
+CREATE TABLE IF NOT EXISTS anime (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    anidb INTEGER NOT NULL,
+    tvdb INTEGER,
+    season INTEGER,
+    episode_offset INTEGER
+);
+

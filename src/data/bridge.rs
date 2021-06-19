@@ -1,44 +1,72 @@
+use core::fmt;
 use std::{borrow::Cow, path::PathBuf};
-use std::{error::Error, io::Read};
 
+use rocket::futures::TryStreamExt;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
+use crate::db::{Database, get_db_handle};
+use std::convert::TryFrom;
+
+use super::utils::request_and_cache;
+
 const BRIDGE_BASE_URL: &str = "https://relations.yuna.moe/api/ids";
 
-fn converter(id: i64, source: &str, dest: &str) -> Option<i64> {
-    let resp =
-        reqwest::blocking::get(&format!("{}?source={}&id={}", BRIDGE_BASE_URL, source, id)).ok()?;
+#[derive(Debug)]
+enum AnimeProvider {
+    Anilist,
+    AniDB,
+    Kitsu,
+}
 
-    if resp.status().is_success() {
-        let body = resp.text().ok()?;
-        let mapping: Value = serde_json::from_str(&body).ok()?;
-        mapping[dest].as_i64()
-    } else {
-        None
+impl fmt::Display for AnimeProvider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.to_string().to_lowercase())
     }
 }
 
-fn anilist_to_anidb(id: i64) -> Option<i64> {
-    converter(id, "anilist", "anidb")
-}
+// Convert from one anime provider to another
+// Eg: Anilist to AniDB
+async fn convert_anime_provider(
+    source: AnimeProvider,
+    dest: AnimeProvider,
+    show_id: i32,
+) -> anyhow::Result<i32> {
+    let anime_response = reqwest::get(&format!(
+        "{}?source={}&id={}",
+        BRIDGE_BASE_URL, source, show_id
+    ))
+    .await?;
 
-fn anidb_to_anilist(id: i64) -> Option<i64> {
-    converter(id, "anidb", "anilist")
+    let not_found_error = anyhow!("Unable to find destionation, {}", dest);
+
+    if anime_response.status().is_success() {
+        let body = anime_response.text().await?;
+        let mapping: Value = serde_json::from_str(&body)?;
+        i32::try_from(mapping[dest.to_string()].as_i64().ok_or(not_found_error)?).map_err(|_| anyhow!("Overflow Error"))
+    } else {
+        Err(not_found_error)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AnimeMap {
-    anidbid: i64,
+    // The ID for the AniDB database
+    pub anidbid: i32,
 
-    #[serde(deserialize_with = "string_as_i64")]
-    tvdbid: i64,
+    // The ID for the TVDB database
+    #[serde(deserialize_with = "string_as_i32")]
+    pub tvdbid: Option<i32>,
 
+    // The season number according to the TVDB database
     #[serde(default)]
-    #[serde(deserialize_with = "string_as_i64")]
-    defaulttvdbseason: i64,
+    #[serde(deserialize_with = "string_as_i32")]
+    pub defaulttvdbseason: Option<i32>,
 
-    episodeoffset: Option<i64>,
+    // Number to add to the AniDB episode number
+    // to correspond to the respective TVDB episode number
+    // in the defaulttvdbseason
+    pub episodeoffset: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -46,70 +74,76 @@ pub struct AnimeList {
     anime: Vec<AnimeMap>,
 }
 
-fn string_as_i64<'de, D>(deserializer: D) -> Result<i64, D::Error>
+// Certain fields like tvdbid and defaulttvdbseason are represented as string in the XML
+// but not always. To deal with that, we have written a custom deserializer
+fn string_as_i32<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: Option<Cow<'de, str>> = Deserialize::deserialize(deserializer)?;
     if let Some(st) = s {
-        match st.parse::<i64>() {
-            Ok(num) => Ok(num),
-            Err(_) => Ok(-1),
+        match st.parse::<i32>() {
+            Ok(num) => Ok(Some(num)),
+            Err(_) => Ok(None),
         }
     } else {
-        Ok(-1)
+        Ok(None)
     }
 }
 
-pub fn generate_anime_list() -> Result<AnimeList, Box<dyn Error>> {
-    let mut cache =
-        static_http_cache::Cache::new(PathBuf::from("./cache"), reqwest::blocking::Client::new())?;
-
-    let mut res = cache.get(reqwest::Url::parse(
-        "https://github.com/ScudLee/anime-lists/raw/master/anime-list-full.xml",
-    )?)?;
-
-    let mut body = String::new();
-    res.read_to_string(&mut body)?;
-    let anime_list: AnimeList = quick_xml::de::from_str(&body)?;
-    Ok(anime_list)
+pub async fn generate_anime_list() -> anyhow::Result<()> {
+    let anime_list_string =
+        request_and_cache("https://github.com/ScudLee/anime-lists/raw/master/anime-list-full.xml")
+            .await?;
+    if let Some(anime_list_unwrapped) = anime_list_string {
+        let anime_list: AnimeList = quick_xml::de::from_str(&anime_list_unwrapped)?;
+    }
+    Ok(())
 }
 
-fn anidb_to_tvdb(id: i64, anime_list: &AnimeList) -> Option<i64> {
-    Some(
-        anime_list
-            .anime
-            .iter()
-            .filter(|anime| anime.anidbid == id)
-            .collect::<Vec<&AnimeMap>>()
-            .first()?
-            .tvdbid,
-    )
+// Store the parsed anime details into a database
+async fn store_in_database(anime_list: Vec<AnimeMap>, database: &Database) -> anyhow::Result<()> {
+    for anime in anime_list {
+        sqlx::query!(
+            "INSERT INTO anime (anidb, tvdb, season, episode_offset) VALUES ($1, $2, $3, $4)",
+            anime.anidbid,
+            anime.tvdbid,
+            anime.defaulttvdbseason,
+            anime.episodeoffset
+        )
+        .execute(database)
+        .await?;
+    }
+    Ok(())
 }
 
-fn season_to_anidb(season: i64, tvdb_id: i64, anime_list: &AnimeList) -> Option<i64> {
-    let mut filtered_list = anime_list
-        .anime
-        .iter()
-        .filter(|anime| {
-            anime.tvdbid == tvdb_id
-                && (anime.defaulttvdbseason == season || anime.defaulttvdbseason == -1)
-        })
-        .collect::<Vec<&AnimeMap>>();
+// Convert an AniDB ID to a TVDB ID
+async fn anidb_to_tvdb(anidb_id: i32, database: &Database) -> anyhow::Result<i32> {
+    let result = sqlx::query!("SELECT tvdb FROM anime WHERE anidb = $1", anidb_id)
+        .fetch_one(database)
+        .await?;
+    result.tvdb.ok_or(anyhow!("TVDB not found"))
+}
 
-    filtered_list.sort_unstable_by_key(|anime| anime.episodeoffset);
+// Function gets the season number and returns the AniDB ID
+async fn season_to_anidb(tvdb: i32, season: i32, database: &Database) -> anyhow::Result<i32> {
+    let anime_list: Vec<AnimeMap> = sqlx::query_as!(AnimeMap, "SELECT anidb as anidbid, tvdb as tvdbid, season as defaulttvdbseason, episode_offset as episodeoffset FROM anime WHERE tvdb = $1 AND (season = $2 OR season = NULL) ORDER BY episode_offset", tvdb, season).fetch(database).try_collect::<Vec<_>>().await?;
 
     let anime_list_index = season as usize;
-    if anime_list_index >= filtered_list.len() {
-        Some(filtered_list.first()?.anidbid)
+    if anime_list_index >= anime_list.len() {
+        anime_list
+            .first()
+            .ok_or(anyhow!("Not available"))
+            .map(|anime| anime.anidbid)
     } else {
-        Some(filtered_list[anime_list_index].anidbid)
+        Ok(anime_list[anime_list_index].anidbid)
     }
 }
 
-pub fn get_season(id: i64, season_number: i64, anime_list: &AnimeList) -> Option<i64> {
-    let anidbid = anilist_to_anidb(id)?;
-    let tvdbid = anidb_to_tvdb(anidbid, &anime_list)?;
-    let correct_anidbid = season_to_anidb(season_number, tvdbid, &anime_list)?;
-    Some(anidb_to_anilist(correct_anidbid)?)
+pub async fn get_season(anilist_id: i32, season_number: i32) -> anyhow::Result<i32> {
+    let anidbid = convert_anime_provider(AnimeProvider::Anilist, AnimeProvider::AniDB, anilist_id).await?;
+    let database = get_db_handle().await?;
+    let tvdbid = anidb_to_tvdb(anidbid, &database).await?;
+    let correct_anidbid = season_to_anidb(season_number, tvdbid, &database).await?;
+    convert_anime_provider(AnimeProvider::AniDB, AnimeProvider::Anilist, correct_anidbid).await
 }

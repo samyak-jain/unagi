@@ -10,7 +10,7 @@ use serde::Deserialize;
 use validator::Validate;
 
 use crate::{
-    api::bridge::generate_anime_list,
+    data::bridge::generate_anime_list,
     db::{library, Database},
 };
 
@@ -29,8 +29,8 @@ pub async fn add_library(db: &State<Database>, library: Json<Library>) -> ApiRes
     let inner_library = library.into_inner();
     let library_id = library::add(db, &inner_library).await?;
     let library_directory =
-        crate::handlers::files::Library::read(inner_library.location, library_id);
-    let anime_list = generate_anime_list().unwrap();
+        crate::services::files::Library::read(inner_library.location, library_id);
+    let anime_list = generate_anime_list().await.unwrap();
     Ok(())
     /*
     let new_library = new_library.into_inner();

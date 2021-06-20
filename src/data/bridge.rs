@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{borrow::Cow, path::PathBuf};
+use std::borrow::Cow;
 
 use rocket::futures::TryStreamExt;
 use serde::{Deserialize, Deserializer};

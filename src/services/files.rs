@@ -185,13 +185,27 @@ impl LibraryDirectory {
 
         // Iterate through all the children of the path. This is fine since we want to
         // iterate through all the children anyway. So there is no benefit lazy loading.
-        // We can use this length and then make the entire allocation for the hashmap at once
-        let dir_entry_iterator = fs::read_dir(&path)?.collect::<Vec<_>>();
+        let mut dir_entry_iterator = fs::read_dir(&path)?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+
+        // We are sorting through all the files in ascending order.
+        // We are doing this is because, there is a chance that we might fail parsing the episode
+        // number from the name of the file. In that case, we will be using the index of the file
+        // to guess the episode number
+        dir_entry_iterator.sort_by_key(|entry| entry.path());
+
+        // We can use the length and then make the entire allocation for the hashmap at once
         let mut episode_map: HashMap<i32, EpisodeDetails> =
             HashMap::with_capacity(dir_entry_iterator.len());
 
-        for (index, entry) in dir_entry_iterator.into_iter().enumerate() {
-            let episode_file = entry?;
+        // We are counting the number of successfull episodes that we parsed. We are doing this
+        // because we are using the index of the loop as a fallback for guessing what the episode
+        // number or a particular file will be. We don't want any failed attempts to count towards
+        // the episode number
+        let mut number_successfull = 0;
+
+        for episode_file in dir_entry_iterator {
             let file_type = episode_file.file_type()?;
 
             // If we are in a directory, we can ignore
@@ -250,13 +264,15 @@ impl LibraryDirectory {
             // If we are not able to figure out the episode name, we are using an api
             // to fetch episode details. However, this requires the episode number to be accurate.
             episode_map.insert(
-                try_episode_number.unwrap_or(index as i32),
+                try_episode_number.unwrap_or(number_successfull + 1),
                 EpisodeDetails {
                     name: try_episode_name.unwrap_or(&file_name).to_string(),
                     path: episode_path.to_string_lossy().to_string(),
                     thumbnail: None,
                 },
             );
+
+            number_successfull += 1;
         }
 
         Ok(Some(ShowDetails {

@@ -2,10 +2,6 @@ use kv::*;
 use rand::{distributions::Alphanumeric, Rng};
 use reqwest::header::ETAG;
 
-use crate::db::Database;
-
-use super::bridge::AnimeMap;
-
 // Takes a URL and uses the ETAG header from the response to check if any
 // new changes need to be fetched
 pub async fn request_and_cache(url: &str) -> anyhow::Result<Option<String>> {

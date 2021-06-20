@@ -5,6 +5,12 @@ fn check_gpu_availability() -> Result<bool, io::Error> {
     Ok(gpu_checker?.status.success())
 }
 
+fn transcode_test() -> anyhow::Result<()> {
+    gstreamer::init()?;
+
+    Ok(())
+}
+
 pub fn start_transcoding(
     source_path: PathBuf,
     destination_path: PathBuf,

@@ -33,6 +33,7 @@ anyhow = "1.0.41"
 dirs = "3.0.2"
 kv = "0.22.0"
 async-trait = "0.1.50"
+gstreamer = "0.16.7"
 
 [dependencies.rocket_sync_db_pools]
 version = "0.1.0-rc.1"

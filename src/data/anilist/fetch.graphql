@@ -1,4 +1,4 @@
-query GetAnime($id: Int!) {
+query FetchAnime($id: Int!) {
   Media(id: $id, type: ANIME) {
     id
     description

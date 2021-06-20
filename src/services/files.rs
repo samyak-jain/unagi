@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use anitomy::{Anitomy, ElementCategory};
 use regex::Regex;
@@ -9,7 +9,6 @@ const EXCLUDE_FILENAMES: &[&str] = &["NCOP", "NCED"];
 #[derive(Clone, Debug)]
 pub struct EpisodeDetails {
     pub name: String,
-    pub number: i32,
     pub path: String,
     pub thumbnail: Option<String>,
 }
@@ -22,7 +21,7 @@ pub struct ShowDetails {
     pub banner_image: Option<String>,
     pub cover_image: Option<String>,
     pub season: i32,
-    pub episodes: Vec<EpisodeDetails>,
+    pub episodes: HashMap<i32, EpisodeDetails>,
 }
 
 pub struct LibraryDirectory {
@@ -97,11 +96,12 @@ impl LibraryDirectory {
             }
 
             // Get the name of the show
-            let show_name = show_file.file_name().to_string_lossy();
+            let show_os_string = show_file.file_name();
+            let show_name = show_os_string.to_string_lossy();
 
             // Let's assume at first that only the top level show directory exists
             // Meaning we don't have the Season 01, Season 02 etc... layout
-            let do_seasons_exist = false;
+            let mut do_seasons_exist = false;
 
             for sub_entry in fs::read_dir(&show_file.path())? {
                 let sub_path = sub_entry?;
@@ -185,9 +185,10 @@ impl LibraryDirectory {
 
         // Iterate through all the children of the path. This is fine since we want to
         // iterate through all the children anyway. So there is no benefit lazy loading.
-        // We can use this length and then make the entire allocation for the vector at once
+        // We can use this length and then make the entire allocation for the hashmap at once
         let dir_entry_iterator = fs::read_dir(&path)?.collect::<Vec<_>>();
-        let mut episode_list: Vec<EpisodeDetails> = Vec::with_capacity(dir_entry_iterator.len());
+        let mut episode_map: HashMap<i32, EpisodeDetails> =
+            HashMap::with_capacity(dir_entry_iterator.len());
 
         for (index, entry) in dir_entry_iterator.into_iter().enumerate() {
             let episode_file = entry?;
@@ -200,7 +201,8 @@ impl LibraryDirectory {
 
             // TODO: We are currently not handling symlinks
 
-            let file_name = episode_file.file_name().to_string_lossy();
+            let file_os_string = episode_file.file_name();
+            let file_name = file_os_string.to_string_lossy();
 
             // Exclude certain filename from being indexed
             if EXCLUDE_FILENAMES
@@ -229,7 +231,7 @@ impl LibraryDirectory {
             // When it succeeds, it is able to get all the elements,
             // but when it fails, it still returns the elements it was able to parse
             // We make use of whatever elements we get
-            let anitomy_elements = anitomy.parse(file_name).map_or_else(|ele| ele, |ele| ele);
+            let anitomy_elements = anitomy.parse(&file_name).map_or_else(|ele| ele, |ele| ele);
 
             // Try getting the Episode number and title
             let try_episode_name = anitomy_elements.get(ElementCategory::EpisodeTitle);
@@ -247,12 +249,14 @@ impl LibraryDirectory {
             //
             // If we are not able to figure out the episode name, we are using an api
             // to fetch episode details. However, this requires the episode number to be accurate.
-            episode_list.push(EpisodeDetails {
-                name: try_episode_name.unwrap_or(&file_name).to_string(),
-                number: try_episode_number.unwrap_or(index as i32),
-                path: episode_path.to_string_lossy().to_string(),
-                thumbnail: None,
-            })
+            episode_map.insert(
+                try_episode_number.unwrap_or(index as i32),
+                EpisodeDetails {
+                    name: try_episode_name.unwrap_or(&file_name).to_string(),
+                    path: episode_path.to_string_lossy().to_string(),
+                    thumbnail: None,
+                },
+            );
         }
 
         Ok(Some(ShowDetails {
@@ -262,7 +266,7 @@ impl LibraryDirectory {
             banner_image: None,
             cover_image: None,
             season: season_number,
-            episodes: episode_list,
+            episodes: episode_map,
         }))
     }
 }
